@@ -65,15 +65,15 @@ namespace vcsc_C3G
             Debug.Init();
             Debug.Message("INFO", "System restarted");
             //*****************************************************************************************************************************************
-            Console.WriteLine("Aschyn call of varfile scan");
-            Task.Run(() => VarfileScan());
+           // Console.WriteLine("Aschyn call of varfile scan");
+           // Task.Run(() => VarfileScan());
             //*****************************************************************************************************************************************
-            Console.WriteLine("Aschyn call of Logfile scan");
-            Task.Run(() => C3GLogFilescan());
+          //  Console.WriteLine("Aschyn call of Logfile scan");
+          //  Task.Run(() => C3GLogFilescan());
 
             //*****************************************************************************************************************************************
-            // Console.WriteLine("Aschyn call of Water file scan");
-            // Task.Run(() => VarfileScanC4GWater());
+             Console.WriteLine("Aschyn call of Water file scan");
+             Task.Run(() => VarfileScanC4GWater());
             //*****************************************************************************************************************************************
             Timer TriggerTimer = new System.Timers.Timer(7 * 24 * 60 * 60 * 1000); //run every week 
             TriggerTimer.Start();
@@ -108,9 +108,9 @@ namespace vcsc_C3G
                             Console.Write("\r System ready | Filebuffer status: {0:D3} | Localbuffer:  {1:D3}/{2:D3} .. ", Buffer.Count(), Cfilecount, localbuffer.Count());
                             spin.Turn();
                             Cfilecount++;
-                            if (IsFileReady(file) && Buffer.Contains(file)) { HandelVarfile(file); }
-                            if (IsFileReady(file) && Buffer.Contains(file)) { HandelLogfile(file); }
-                            //  if (IsFileReady(file) && Buffer.Contains(file)) { HandelWaterfile(file); }
+                          //  if (IsFileReady(file) && Buffer.Contains(file)) { HandelVarfile(file); }
+                          //  if (IsFileReady(file) && Buffer.Contains(file)) { HandelLogfile(file); }
+                              if (IsFileReady(file) && Buffer.Contains(file)) { HandelWaterfile(file); }
                             else if (!File.Exists(file)) { Buffer.Delete(file); Debug.Message("FileNotExistWhileInBuffer", file.Substring(Math.Max(0, file.Length - 40))); }
                         }
                         catch (Exception ex) { Debug.Message("Buffersweep", file.Substring(Math.Max(0, file.Length - 40)) + " msg: " + ex.Message); }
@@ -144,10 +144,10 @@ namespace vcsc_C3G
         private static void VarfileScanC4GWater()
         {
             List<string> VARSearchpaths = new List<String>() { 
-                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\", 
+                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\"};/*, 
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
-                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};
+                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};*/
             List<string> VARExeptedfiles = new List<string>() { "Def_Water.var" };
             List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
             List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VAR", VARExeptedfiles, VARExeptedFolders);
