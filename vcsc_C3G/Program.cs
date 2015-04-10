@@ -14,7 +14,6 @@ using System.Timers;
 using System.Resources;
 using Excel = Microsoft.Office.Interop.Excel;
 
-//initial commit
 namespace vcsc_C3G
 {
 static class Buffer
@@ -58,6 +57,27 @@ static class Debug
         }
     }
 }
+
+public class ConsoleSpiner
+{
+    int counter;
+    public ConsoleSpiner()
+    {
+        counter = 0;
+    }
+    public void Turn()
+    {
+        counter++;
+        switch (counter % 4)
+        {
+            case 0: Console.Write("/"); break;
+            case 1: Console.Write("-"); break;
+            case 2: Console.Write("\\"); break;
+            case 3: Console.Write("-"); break;
+        }
+        Console.SetCursorPosition(Console.CursorLeft - 1, Console.CursorTop);
+    }
+} 
 
 class Program
     {
@@ -1217,26 +1237,7 @@ GO
                 GC.Collect();
             }
         }
-        public class ConsoleSpiner
-        {
-            int counter;
-            public ConsoleSpiner()
-            {
-                counter = 0;
-            }
-            public void Turn()
-            {
-                counter++;
-                switch (counter % 4)
-                {
-                    case 0: Console.Write("/"); break;
-                    case 1: Console.Write("-"); break;
-                    case 2: Console.Write("\\"); break;
-                    case 3: Console.Write("-"); break;
-                }
-                Console.SetCursorPosition(Console.CursorLeft - 1, Console.CursorTop);
-            }
-        } 
+
 
     } // end of progam
 } // end of namespace
