@@ -970,26 +970,21 @@ GO
         }
         static void TranslateC4G(String as_FullFilepath)
         {
+            //extract the C4G decomplir from the resource into the executionpath
+            byte[] exeBytes = Properties.Resources.pdl2_v561;
+            string exeToRun = new Uri(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase) + @"\c4gtr.exe").LocalPath;
+            if (!File.Exists(exeToRun)) { using (FileStream exeFile = new FileStream(exeToRun, FileMode.CreateNew)) { exeFile.Write(exeBytes, 0, exeBytes.Length); } }
             // Use ProcessStartInfo class
             ProcessStartInfo startInfo = new ProcessStartInfo();
-            startInfo.WorkingDirectory = @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\99070R01\"; // as_FullFilepath.Replace(Path.GetFileName(as_FullFilepath), "").Trim();
+            startInfo.WorkingDirectory = as_FullFilepath.Replace(Path.GetFileName(as_FullFilepath), "").Trim();
             startInfo.CreateNoWindow = false;
             startInfo.UseShellExecute = false;
-            startInfo.FileName = @"c:\temp\c4gtr.exe";
+            startInfo.FileName = exeToRun; //@"C:\temp\c4gtr.exe"; //
             startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            //startInfo.RedirectStandardOutput = true;
-            startInfo.Arguments = @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\99070R01\LY413.var";  //as_FullFilepath;
-            try
-            {
-                using (Process exeProcess = Process.Start(startInfo))
-                {
-                    exeProcess.WaitForExit();
-                }
-            }
-            catch
-            {
-                Console.WriteLine("TranslationErr");
-            }
+            startInfo.RedirectStandardOutput = true;
+            startInfo.Arguments = @"/B /V " + Path.GetFileName(as_FullFilepath);
+            try { using (Process exeProcess = Process.Start(startInfo)) { exeProcess.WaitForExit(); } }
+            catch { Debug.Message("TranslationErr", "robotid: " + GetC3GRobotID(GetRobotName(as_FullFilepath)) + " For: " + GetRobotName(as_FullFilepath)); }
         }
         //*****************************************************************************************************************************************
         //SQL
