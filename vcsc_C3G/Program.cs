@@ -14,9 +14,10 @@ using System.Timers;
 using System.Resources;
 using Excel = Microsoft.Office.Interop.Excel;
 
+
 namespace vcsc_C3G
 {
-static class Buffer
+    static class Buffer
     {
         static List<string> _Logbuffer; // Static List instance
         static Buffer() { _Logbuffer = new List<string>(); }
@@ -25,73 +26,61 @@ static class Buffer
         public static Int32 Count() { return _Logbuffer.Count(); }
         public static List<string> getbuffer() { return _Logbuffer; }
         public static void Display() { foreach (var value in _Logbuffer) { Console.WriteLine(value); } }
-        public static bool Contains(string file){if (_Logbuffer.Contains(file)) { return true; }else { return false; } }
+        public static bool Contains(string file) { if (_Logbuffer.Contains(file)) { return true; } else { return false; } }
     }
 
-static class Debug
-{
-    public static void Init()
+    static class Debug
     {
-        Trace.Listeners.Add(new TextWriterTraceListener("C3g_Debug.log"));
-        Trace.AutoFlush = true;
-        Trace.Indent();
-        Trace.Unindent();
-        Trace.Flush();
-    }
-    public static void Restart()
-    {
-        Console.WriteLine("System will restart in 10 seconds");
-        System.Threading.Thread.Sleep(10000);
-        var fileName = Assembly.GetExecutingAssembly().Location;
-        System.Diagnostics.Process.Start(fileName);
-        Environment.Exit(0);
-    }
-    public static void Message(string ls_part, string ls_message)
-    {
-        Trace.WriteLine("DT: " + System.DateTime.Now + " P: " + ls_part + " M: " + ls_message);
-        Console.WriteLine("DT: " + System.DateTime.Now + " P: " + ls_part + " M: " + ls_message);
-        using(EventLog eventlog = new EventLog("Application"))
+        public static void Init()
         {
-            eventlog.Source = "Application";
-            eventlog.WriteEntry(ls_message, EventLogEntryType.Information, 101, 1);
+            Trace.Listeners.Add(new TextWriterTraceListener("C3g_Debug.log"));
+            Trace.AutoFlush = true;
+            Trace.Indent();
+            Trace.Unindent();
+            Trace.Flush();
+        }
+        public static void Restart()
+        {
+            Console.WriteLine("System will restart in 10 seconds");
+            System.Threading.Thread.Sleep(10000);
+            var fileName = Assembly.GetExecutingAssembly().Location;
+            System.Diagnostics.Process.Start(fileName);
+            Environment.Exit(0);
+        }
+        public static void Message(string ls_part, string ls_message)
+        {
+            Trace.WriteLine("DT: " + System.DateTime.Now + " P: " + ls_part + " M: " + ls_message);
+            Console.WriteLine("DT: " + System.DateTime.Now + " P: " + ls_part + " M: " + ls_message);
         }
     }
-}
 
-public class ConsoleSpiner
-{
-    int counter;
-    public ConsoleSpiner()
+    class Program
     {
-        counter = 0;
-    }
-    public void Turn()
-    {
-        counter++;
-        switch (counter % 4)
-        {
-            case 0: Console.Write("/"); break;
-            case 1: Console.Write("-"); break;
-            case 2: Console.Write("\\"); break;
-            case 3: Console.Write("-"); break;
-        }
-        Console.SetCursorPosition(Console.CursorLeft - 1, Console.CursorTop);
-    }
-} 
-
-class Program
-    {
-         //Main
+        //Main
         static void Main(string[] args)
         {
-            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 15W15D04";
+
+            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL";
             Console.BufferHeight = 100;
             Debug.Init();
             Debug.Message("INFO", "System restarted");
+            //*****************************************************************************************************************************************
+            Console.WriteLine("Aschyn call of varfile scan");
+            Task.Run(() => VarfileScan());
+            //*****************************************************************************************************************************************
+            Console.WriteLine("Aschyn call of Logfile scan");
+            Task.Run(() => C3GLogFilescan());
 
             //*****************************************************************************************************************************************
+            // Console.WriteLine("Aschyn call of Water file scan");
+            // Task.Run(() => VarfileScanC4GWater());
+            //*****************************************************************************************************************************************
+            Timer TriggerTimer = new System.Timers.Timer(7 * 24 * 60 * 60 * 1000); //run every week 
+            TriggerTimer.Start();
+            TriggerTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
+            //*****************************************************************************************************************************************
             //build file sytem watch 
-            try { 
+            /*
             FileSystemWatcher watcher = new FileSystemWatcher();
             watcher.Path = @"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\";
             watcher.InternalBufferSize = (watcher.InternalBufferSize * 2); //2 times default buffer size 
@@ -101,25 +90,12 @@ class Program
             watcher.Error += new ErrorEventHandler(OnError);
             watcher.Created += new FileSystemEventHandler(OnCreate);
             watcher.EnableRaisingEvents = true;
-            }
-            catch (Exception ex) { Debug.Message("Wachter", ex.Message); Debug.Restart(); }
             //*****************************************************************************************************************************************
-            Console.WriteLine("Aschyn call of varfile scan");
-            Task.Run(() => VarfileScan());
-            //*****************************************************************************************************************************************
-            Console.WriteLine("Aschyn call of Logfile scan");
-            Task.Run(() => C3GLogFilescan());
-            //*****************************************************************************************************************************************
-            Timer TriggerTimer = new System.Timers.Timer(7 * 24 * 60 * 60 * 1000); //run every week 
-            TriggerTimer.Start();
-            TriggerTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
-            //*****************************************************************************************************************************************
+            */
             ConsoleSpiner spin = new ConsoleSpiner();
             while (true)
             {
-            System.Threading.Thread.Sleep(500);
-            try
-            {
+                System.Threading.Thread.Sleep(500);
                 if (Buffer.Count() == 0) { Console.Write("\r System ready (buffer empty)                               "); spin.Turn(); }
                 else
                 {
@@ -129,19 +105,18 @@ class Program
                     {
                         try
                         {
-                            Console.Write("\r System ready | Filebuffer status: {0:D3} | Localbuffer:  {1:D3} ", Buffer.Count(), Cfilecount);
+                            Console.Write("\r System ready | Filebuffer status: {0:D3} | Localbuffer:  {1:D3}/{2:D3} .. ", Buffer.Count(), Cfilecount, localbuffer.Count());
                             spin.Turn();
                             Cfilecount++;
                             if (IsFileReady(file) && Buffer.Contains(file)) { HandelVarfile(file); }
                             if (IsFileReady(file) && Buffer.Contains(file)) { HandelLogfile(file); }
+                            //  if (IsFileReady(file) && Buffer.Contains(file)) { HandelWaterfile(file); }
                             else if (!File.Exists(file)) { Buffer.Delete(file); Debug.Message("FileNotExistWhileInBuffer", file.Substring(Math.Max(0, file.Length - 40))); }
                         }
                         catch (Exception ex) { Debug.Message("Buffersweep", file.Substring(Math.Max(0, file.Length - 40)) + " msg: " + ex.Message); }
                     }
                 }
             }
-            catch (Exception ex) {Debug.Message("GeneralCatch", " msg: " + ex.Message); } 
-          }
         }
         //scan for Log files
         private static void C3GLogFilescan()
@@ -150,9 +125,9 @@ class Program
             List<string> LOGExeptedfiles = new List<string>() { "TOOL_01.LOG", "TOOL_02.LOG", "TOOL_03.LOG", "TOOL_04.LOG", "ERROR.LOG" };
             List<string> LOGExeptedFolders = new List<string>() { @"\Comau\3\" };
             List<string> LOGResultList = ReqSearchDir(LOGSearchpaths, "*.LOG", LOGExeptedfiles, LOGExeptedFolders);
-            foreach (string file in LOGResultList) { Buffer.Record(file);}
+            foreach (string file in LOGResultList) { Buffer.Record(file); }
         }
-        //scan for var files
+        //scan for var files tool and frame files C3G
         private static void VarfileScan()
         {
             List<string> VARSearchpaths = new List<String>() { 
@@ -165,14 +140,27 @@ class Program
             List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VAR", VARExeptedfiles, VARExeptedFolders);
             foreach (string file in VARResultList) { Buffer.Record(file); }
         }
+        //scan for var files def_water in C4G
+        private static void VarfileScanC4GWater()
+        {
+            List<string> VARSearchpaths = new List<String>() { 
+                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\", 
+                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\",
+                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
+                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};
+            List<string> VARExeptedfiles = new List<string>() { "Def_Water.var" };
+            List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
+            List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VAR", VARExeptedfiles, VARExeptedFolders);
+            foreach (string file in VARResultList) { Buffer.Record(file); }
+        }
         // Event handeler for priodic scan ecent 
-        private static void OnTimedEvent(object source, ElapsedEventArgs e) 
-        { 
-            Debug.Message("INFO","Varfilescan"); 
-            Task.Run(() => VarfileScan()); 
-        }    
+        private static void OnTimedEvent(object source, ElapsedEventArgs e)
+        {
+            Debug.Message("INFO", "Varfilescan");
+            Task.Run(() => VarfileScan());
+        }
         // Event handeler for robot puts file on server
-        private static void OnCreate(object source, FileSystemEventArgs e){Buffer.Record(e.FullPath); }
+        private static void OnCreate(object source, FileSystemEventArgs e) { Buffer.Record(e.FullPath); }
         // Event handeler for error event in wacther (auto restart)
         private static void OnError(object source, ErrorEventArgs e) { Debug.Message("FileWachter", e.GetException().Message); Debug.Restart(); }
         //*****************************************************************************************************************************************
@@ -181,32 +169,30 @@ class Program
         //handle log file
         public static void HandelLogfile(string fullFilepath)
         {
-                DataTable buffertable = new DataTable();
-                switch (IsC3GLog(fullFilepath))
-                {
-                    case "Errorlog":
-                        buffertable = ReadC3GErrlog(fullFilepath);
-                        buffertable = CheckDataConsistensyC3G(buffertable);
-                        BulkCopyToGadata(buffertable, "rt_alarm");
-                        SafeDelete(fullFilepath);
-                        Buffer.Delete(fullFilepath);
-                        RemoveEmptyFolders(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
-                        break;
-                    case "Toollog":
-                        buffertable = ReadC3GToollog(fullFilepath);
-                        BulkCopyToGadata(buffertable, "rt_toollog");
-                        SafeDelete(fullFilepath);
-                        Buffer.Delete(fullFilepath);
-                        RemoveEmptyFolders(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
-                        break;
-                    default:
-                        Debug.Message("Unknow filetype", fullFilepath.Substring(Math.Max(0, fullFilepath.Length - 40)));
-                        File.Delete(fullFilepath);
-                        Buffer.Delete(fullFilepath);
-                        break;
-                }
-                buffertable.Dispose();
-
+            DataTable buffertable = new DataTable();
+            switch (IsC3GLog(fullFilepath))
+            {
+                case "Errorlog":
+                    buffertable = ReadC3GErrlog(fullFilepath);
+                    buffertable = CheckDataConsistensyC3G(buffertable);
+                    BulkCopyToGadata(buffertable, "rt_alarm");
+                    SafeDelete(fullFilepath);
+                    Buffer.Delete(fullFilepath);
+                    RemoveEmptyFolders(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
+                    break;
+                case "Toollog":
+                    buffertable = ReadC3GToollog(fullFilepath);
+                    BulkCopyToGadata(buffertable, "rt_toollog");
+                    SafeDelete(fullFilepath);
+                    Buffer.Delete(fullFilepath);
+                    RemoveEmptyFolders(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
+                    break;
+                default:
+                    Debug.Message("Unknow filetype", fullFilepath.Substring(Math.Max(0, fullFilepath.Length - 40)));
+                    Buffer.Delete(fullFilepath);
+                    break;
+            }
+            buffertable.Dispose();
         }
         //handle Var file
         public static void HandelVarfile(string fullFilePath)
@@ -230,44 +216,87 @@ class Program
                 else { Debug.Message("VarReading", fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)) + " msg: translation err"); }
             }
         }
+
+        //handle log file
+        public static void HandelWaterfile(string fullFilepath)
+        {
+            if (fullFilepath.IndexOf("DEF_WATER.VAR", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                TranslateC4G(fullFilepath);
+                if (IsFileReady(fullFilepath.Replace(".var", ".lsv")))
+                {
+                    Stream stream = File.Open(fullFilepath.Replace(".var", ".lsv"), FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    using (var reader = new StreamReader(stream))
+                    {
+                        while (!reader.EndOfStream)
+                        {
+                            var line = reader.ReadLine();
+                            if (line.IndexOf("gb_water_flow_enbl:", StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                for (int i = 1; i <= 3; i++)
+                                {
+                                    var testline = reader.ReadLine();
+                                    if ((testline.IndexOf("OFF", StringComparison.OrdinalIgnoreCase) >= 0) | (testline.IndexOf("FALSE", StringComparison.OrdinalIgnoreCase) >= 0))
+                                    {
+                                        /* Console.WriteLine();
+                                         Console.WriteLine("**********************************");
+                                         Console.WriteLine("Got a hit for: " + GetRobotName(fullFilepath));
+                                         Console.WriteLine("line" + i + ": " + testline);
+                                         Console.WriteLine("**********************************");*/
+                                        Debug.Message("Water finder Got a hit for", GetRobotName(fullFilepath) + " ON: " + testline);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    File.Delete(fullFilepath.Replace(".var", ".lsv"));
+                }
+                else { Console.WriteLine("file not ready trans prob"); }
+            }
+            else
+            { Console.WriteLine("not a water file: " + fullFilepath); }
+            Buffer.Delete(fullFilepath);
+        }
+
+
         //check if tile is errorlog
         public static string IsC3GLog(string fullFilePath)
         {
-        Stream stream = File.Open(fullFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using (var reader = new StreamReader(stream))
-        {
-            var hasComau = false;
-            var hasCorrectType = false;
-            var hasDmeas = false;
-            var hasDsetup = false;
-
-            while (!reader.EndOfStream)
+            Stream stream = File.Open(fullFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using (var reader = new StreamReader(stream))
             {
-                var line = reader.ReadLine();
-                if (!hasComau)
+                var hasComau = false;
+                var hasCorrectType = false;
+                var hasDmeas = false;
+                var hasDsetup = false;
+
+                while (!reader.EndOfStream)
                 {
-                    if (line.StartsWith("*  C O M A U  :  Robotics              *"))  { hasComau = true; }
+                    var line = reader.ReadLine();
+                    if (!hasComau)
+                    {
+                        if (line.StartsWith("*  C O M A U  :  Robotics              *")) { hasComau = true; }
+                    }
+                    if (!hasCorrectType)
+                    {
+                        if (line.StartsWith("* ERROR FORMAT RELEASE     : 1.0       *")) { hasCorrectType = true; }
+                    }
+                    if (!hasDmeas)
+                    {
+                        if (line.Contains("dmeas=")) { hasDmeas = true; }
+                    }
+                    if (!hasDsetup)
+                    {
+                        if (line.Contains("dsetup=")) { hasDsetup = true; }
+                    }
+                    //saves me from reading whole file
+                    if ((hasCorrectType && hasComau) | (hasDmeas && hasDsetup)) { break; }
                 }
-                if (!hasCorrectType)
-                {
-                    if (line.StartsWith("* ERROR FORMAT RELEASE     : 1.0       *")) { hasCorrectType = true; }
-                }
-                if (!hasDmeas)
-                {
-                    if (line.Contains("dmeas=")) { hasDmeas = true; }
-                }
-                if (!hasDsetup)
-                {
-                    if (line.Contains("dsetup=")) { hasDsetup = true; }
-                }
-                //saves me from reading whole file
-                if ((hasCorrectType && hasComau) | (hasDmeas && hasDsetup)){break;}
+                if (hasCorrectType && hasCorrectType) { return "Errorlog"; }
+                else if (hasDmeas && hasDsetup) { return "Toollog"; }
+                else { return "Unknown"; }
             }
-            if (hasCorrectType && hasCorrectType) { return "Errorlog"; }
-            else if (hasDmeas && hasDsetup) {return "Toollog"; }
-            else { return "Unknown"; }        
-          }
-    }
+        }
         //Read the logfile
         private static DataTable ReadC3GErrlog(string fullFilePath)
         {
@@ -338,55 +367,45 @@ class Program
 
             foreach (string line in lines)
             {
-                //finds begin of datetime line and next line has tcp
-                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase) && lines[index + 1].Contains("T <"))
+                //finds begin of datetime line
+                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                 {
                     //extract datetime format from current line
-                   string dateString = line.Substring(0, line.IndexOf("dmeas"));
+                    string dateString = line.Substring(0, line.IndexOf("dmeas"));
                     //extract dmeas and dsetup from current line
-                   //if (line.ToString().Contains("Attr")) //selection for type of logfile (new version with attrbute)
-                   //{
-                   float Dmeas = float.Parse(line.ToString().Split('=')[1].Replace("dsetup", "").Trim(), CultureInfo.InvariantCulture);
-                   float Dsetup = float.Parse(line.ToString().Split('=')[2].Replace("Attr", "").Trim(), CultureInfo.InvariantCulture);
-                   Boolean Longcheck = false;
-                   if (line.Contains("Attr") && line.ToString().Split('=')[3].Contains('L')) { Longcheck = true; }
-                   Boolean Update = false;
-                   if (line.Contains("Attr") && line.ToString().Split('=')[3].Contains('U')) { Update = true; }
-                   //get toolvalues from next logline 
-                       // T < 338.492, 262.238, 1060.765, -142.690, 155.900, 34.730,>
-                       string TcpString = lines[index + 1].Replace("T <", "").Replace(",>", "").Replace("\0", "").Trim();
-                       // 338.492, 262.238, 1060.765, -142.690, 155.900, 34.730
-                       float x = float.Parse(TcpString.Split(',')[0], CultureInfo.InstalledUICulture);
-                       float y = float.Parse(TcpString.Split(',')[1], CultureInfo.InstalledUICulture);
-                       float z = float.Parse(TcpString.Split(',')[2], CultureInfo.InstalledUICulture);
-                       float a = float.Parse(TcpString.Split(',')[3], CultureInfo.InstalledUICulture);
-                       float e = float.Parse(TcpString.Split(',')[4], CultureInfo.InstalledUICulture);
-                       float r = float.Parse(TcpString.Split(',')[5], CultureInfo.InstalledUICulture);
-                       //Console.WriteLine("x: '{0}'  y: '{1}' z: '{2}' a: '{3}'  e: '{4}' r: '{5}'", x, y, z, a, e, r);
-                  //add to buffer 
-                   row = Buffer.NewRow();
-                   if (line.Contains("Attr"))
-                   {
-                     row["Longcheck"] = Longcheck;
-                     row["TcpUpdate"] = Update;
-                   }
-                   else
-                   {
-                     row["Longcheck"] = DBNull.Value;
-                     row["TcpUpdate"] = DBNull.Value;
-                   }
-                   row["controller_id"] = RobotId;
-                   row["tool_timestamp"] = ConvertComauDate(dateString);
-                   row["tool_id"] = GetToolId(fullFilePath);
-                   row["Dmeas"] = Dmeas;
-                   row["Dsetup"] = Dsetup;
-                   row["ToolX"] = x;
-                   row["ToolY"] = y;
-                   row["ToolZ"] = z;
-                   row["ToolA"] = a;
-                   row["ToolE"] = e;
-                   row["ToolR"] = r;
-                   Buffer.Rows.Add(row); 
+                    float Dmeas = float.Parse(line.ToString().Split('=')[1].Replace("dsetup", "").Trim(), CultureInfo.InvariantCulture);
+                    float Dsetup = float.Parse(line.ToString().Split('=')[2].Trim(), CultureInfo.InvariantCulture);
+
+                    //need to adjust datafunction so it can handle bouth time of comau date format 
+                    //Console.WriteLine("Robot= '{3}' Tool: '{4}' Date: '{0}'  Dmeas: '{1}' Dsetup: '{2}' ", 
+                    //dateString.Trim(), Dmeas, Dsetup, GetRobotName(fullFilePath), GetToolId(fullFilePath));
+
+                    //get toolvalues from next logline 
+                    // T < 338.492, 262.238, 1060.765, -142.690, 155.900, 34.730,>
+                    string TcpString = lines[index + 1].Replace("T <", "").Replace(",>", "").Replace("\0", "").Trim();
+                    // 338.492, 262.238, 1060.765, -142.690, 155.900, 34.730
+                    float x = float.Parse(TcpString.Split(',')[0], CultureInfo.InstalledUICulture);
+                    float y = float.Parse(TcpString.Split(',')[1], CultureInfo.InstalledUICulture);
+                    float z = float.Parse(TcpString.Split(',')[2], CultureInfo.InstalledUICulture);
+                    float a = float.Parse(TcpString.Split(',')[3], CultureInfo.InstalledUICulture);
+                    float e = float.Parse(TcpString.Split(',')[4], CultureInfo.InstalledUICulture);
+                    float r = float.Parse(TcpString.Split(',')[5], CultureInfo.InstalledUICulture);
+                    //Console.WriteLine("x: '{0}'  y: '{1}' z: '{2}' a: '{3}'  e: '{4}' r: '{5}'", x, y, z, a, e, r);
+
+                    //add to buffer 
+                    row = Buffer.NewRow();
+                    row["controller_id"] = RobotId;
+                    row["tool_timestamp"] = ConvertComauDate(dateString);
+                    row["tool_id"] = GetToolId(fullFilePath);
+                    row["Dmeas"] = Dmeas;
+                    row["Dsetup"] = Dsetup;
+                    row["ToolX"] = x;
+                    row["ToolY"] = y;
+                    row["ToolZ"] = z;
+                    row["ToolA"] = a;
+                    row["ToolE"] = e;
+                    row["ToolR"] = r;
+                    Buffer.Rows.Add(row);
                 }
                 index++;
             }
@@ -404,8 +423,8 @@ class Program
             string sPatternPOS = "POS  Priv";
             string sPatternXTND1 = "XTND Arm: 1 Ax: 1 Priv";
             string sPatternXTND2 = "XTND Arm: 1 Ax: 2 Priv";
-            string sPatternTool = "vp_tools";  
-            string sPatternFrame = "vp_frames"; 
+            string sPatternTool = "vp_tools";
+            string sPatternFrame = "vp_frames";
             // buffer table
             DataTable Buffer = MakePosBufferTable();
             DataRow row = Buffer.NewRow();
@@ -413,7 +432,7 @@ class Program
             //
             foreach (string line in lines)
             {
-              //  Console.WriteLine(line);
+                //  Console.WriteLine(line);
                 Boolean bPOSmode = false;
                 Boolean bXTND1mode = false;
                 Boolean bXTND2mode = false;
@@ -430,14 +449,18 @@ class Program
                 float ax7 = 0.0f;
                 float ax8 = 0.0f;
                 //finds position lines
-                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternPOS, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) {bPOSmode = true;}  
-                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternXTND1, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) {bXTND1mode = true;}
+                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternPOS, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) { bPOSmode = true; }
+                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternXTND1, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) { bXTND1mode = true; }
                 if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternXTND2, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) { bXTND2mode = true; }
-                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternTool, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) { Toolmode = true;
-                 numtools = Int32.Parse(line.Substring((line.IndexOf("APOS[") + 5), 2).Trim());
+                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternTool, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                {
+                    Toolmode = true;
+                    numtools = Int32.Parse(line.Substring((line.IndexOf("APOS[") + 5), 2).Trim());
                 }
-                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternFrame, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) { Framemode = true;
-                 numtools = Int32.Parse(line.Substring((line.IndexOf("APOS[") + 5), 2).Trim());
+                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternFrame, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                {
+                    Framemode = true;
+                    numtools = Int32.Parse(line.Substring((line.IndexOf("APOS[") + 5), 2).Trim());
                 }
 
                 if (bPOSmode) { posname = line.Substring(0, line.IndexOf(sPatternPOS)).Trim(); };
@@ -446,38 +469,38 @@ class Program
             NextTF:
                 if (Toolmode && TFnum < numtools)
                 {
-                    posname = "Tool_" + TFnum; 
-                    TFnum++; 
+                    posname = "Tool_" + TFnum;
+                    TFnum++;
                     index++;
-                    
+
                 }
-                else {Toolmode = false;}
+                else { Toolmode = false; }
 
-            if (Framemode && TFnum < numtools)
-            {
-                posname = "Frame_" + TFnum;
-                TFnum++;
-                index++;
+                if (Framemode && TFnum < numtools)
+                {
+                    posname = "Frame_" + TFnum;
+                    TFnum++;
+                    index++;
 
-            }
-            else { Framemode = false; }
+                }
+                else { Framemode = false; }
 
 
 
-            if (bPOSmode | bXTND1mode | bXTND2mode | Toolmode | Framemode)
+                if (bPOSmode | bXTND1mode | bXTND2mode | Toolmode | Framemode)
                 {
                     //get position from next line  Line ex:  X:4606.30 Y:-366.59 Z:1373.78 A: -15.32 E:  37.21 R:-154.37
                     if (!lines[index + 1].Contains("*******")) //handels uninit positions
                     {
-                       // string currentline1 = line;
-                       // string currentline = lines[index + 1];
-                       // Console.WriteLine(currentline);
+                        // string currentline1 = line;
+                        // string currentline = lines[index + 1];
+                        // Console.WriteLine(currentline);
                         x = float.Parse(lines[index + 1].Split(':')[1].TrimEnd(new char[] { 'Y' }).Trim(), CultureInfo.InstalledUICulture);
                         y = float.Parse(lines[index + 1].Split(':')[2].TrimEnd(new char[] { 'Z' }).Trim(), CultureInfo.InstalledUICulture);
                         z = float.Parse(lines[index + 1].Split(':')[3].TrimEnd(new char[] { 'A' }).Trim(), CultureInfo.InstalledUICulture);
                         a = float.Parse(lines[index + 1].Split(':')[4].TrimEnd(new char[] { 'E' }).Trim(), CultureInfo.InstalledUICulture);
                         e = float.Parse(lines[index + 1].Split(':')[5].TrimEnd(new char[] { 'R' }).Trim(), CultureInfo.InstalledUICulture);
-                        if (bPOSmode) {r = float.Parse(lines[index + 1].Split(':')[6].Trim(), CultureInfo.InstalledUICulture);}
+                        if (bPOSmode) { r = float.Parse(lines[index + 1].Split(':')[6].Trim(), CultureInfo.InstalledUICulture); }
                         if (bXTND1mode)
                         {
                             r = float.Parse(lines[index + 1].Split(':')[6].TrimEnd(new char[] { '1' }).Trim(), CultureInfo.InstalledUICulture);
@@ -494,7 +517,7 @@ class Program
                     }
                     //
                     //Console.WriteLine("robot: {9} File: '{0}'  Pos: '{1}' x: '{2}' y: '{3}' z: '{4}' a: '{5}' e: '{6}' r: '{7}' cnfg: '{8}'",
-                      //  Path.GetFileNameWithoutExtension(fullFilePath), posname, x, y, z, a, e, r, cnfg,GetRobotName(fullFilePath));
+                    //  Path.GetFileNameWithoutExtension(fullFilePath), posname, x, y, z, a, e, r, cnfg,GetRobotName(fullFilePath));
                     //add to buffer 
                     row = Buffer.NewRow();
                     row["controller_id"] = Robotid;
@@ -510,7 +533,7 @@ class Program
                     row["R"] = r;
                     if (bXTND1mode | bXTND2mode) { row["ax7"] = ax7; } else { row["ax7"] = DBNull.Value; }
                     if (bXTND2mode) { row["ax8"] = ax8; } else { row["ax8"] = DBNull.Value; }
-                    row["Cnfg"] =cnfg;
+                    row["Cnfg"] = cnfg;
                     Buffer.Rows.Add(row);
 
                     if (Toolmode | Framemode) { index = index + 2; goto NextTF; }
@@ -554,62 +577,62 @@ class Program
             error_text_id.DataType = System.Type.GetType("System.Int32");
             error_text_id.ColumnName = "error_text_id";
             Buffer.Columns.Add(error_text_id);
-            
+
             DataColumn error_text = new DataColumn();
             error_text.DataType = System.Type.GetType("System.String");
             error_text.ColumnName = "error_text";
             Buffer.Columns.Add(error_text);
             DataColumn[] keys = new DataColumn[1];
             keys[0] = ID;
-            Buffer.PrimaryKey = keys; 
+            Buffer.PrimaryKey = keys;
             return Buffer;
 
-//SQL target table
-/*
- USE [GADATA]
-GO
-***** Object:  Table [RobotGA].[rt_alarm]    Script Date: 2/10/2014 6:19:35 *****
-SET ANSI_NULLS ON
-GO
+            //SQL target table
+            /*
+             USE [GADATA]
+            GO
+            ***** Object:  Table [RobotGA].[rt_alarm]    Script Date: 2/10/2014 6:19:35 *****
+            SET ANSI_NULLS ON
+            GO
 
-SET QUOTED_IDENTIFIER ON
-GO
+            SET QUOTED_IDENTIFIER ON
+            GO
 
-SET ANSI_PADDING ON
-GO
+            SET ANSI_PADDING ON
+            GO
 
-CREATE TABLE [RobotGA].[rt_alarm](
-	[id] [int] IDENTITY(1,1) NOT NULL,
-	[controller_id] [int] NULL,
-	[error_timestamp] [datetime] NULL,
-	[error_number] [int] NULL,
-	[error_severity] [int] NULL,
-	[error_text] [varchar](256) NULL,
-	[RobotName] [varchar](20) NULL,
- CONSTRAINT [PK_rt_alarm] PRIMARY KEY CLUSTERED 
-(
-	[id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-) ON [PRIMARY]
+            CREATE TABLE [RobotGA].[rt_alarm](
+                [id] [int] IDENTITY(1,1) NOT NULL,
+                [controller_id] [int] NULL,
+                [error_timestamp] [datetime] NULL,
+                [error_number] [int] NULL,
+                [error_severity] [int] NULL,
+                [error_text] [varchar](256) NULL,
+                [RobotName] [varchar](20) NULL,
+             CONSTRAINT [PK_rt_alarm] PRIMARY KEY CLUSTERED 
+            (
+                [id] ASC
+            )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+            ) ON [PRIMARY]
 
-GO
+            GO
 
-SET ANSI_PADDING OFF
-GO
+            SET ANSI_PADDING OFF
+            GO
 
 
-            use GADATA
+                        use GADATA
 
-CREATE UNIQUE NONCLUSTERED INDEX [IndexTableUniqueRows] ON gadata.robotga.rt_alarm
-(
-       [controller_id]
-      ,[error_timestamp]
-      ,[error_number]
-  ASC
+            CREATE UNIQUE NONCLUSTERED INDEX [IndexTableUniqueRows] ON gadata.robotga.rt_alarm
+            (
+                   [controller_id]
+                  ,[error_timestamp]
+                  ,[error_number]
+              ASC
 
-)WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = ON, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+            )WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = ON, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
  
- * */
+             * */
         }
         private static DataTable MakeToollogBufferTable()
         {
@@ -676,23 +699,13 @@ CREATE UNIQUE NONCLUSTERED INDEX [IndexTableUniqueRows] ON gadata.robotga.rt_ala
             controller_id.ColumnName = "controller_id";
             Buffer.Columns.Add(controller_id);
 
-            DataColumn Longcheck = new DataColumn();
-            Longcheck.DataType = System.Type.GetType("System.Boolean");
-            Longcheck.ColumnName = "Longcheck";
-            Buffer.Columns.Add(Longcheck);
-
-            DataColumn TcpUpdate = new DataColumn();
-            TcpUpdate.DataType = System.Type.GetType("System.Boolean");
-            TcpUpdate.ColumnName = "TcpUpdate";
-            Buffer.Columns.Add(TcpUpdate);
-
             DataColumn[] keys = new DataColumn[1];
             keys[0] = ID;
             Buffer.PrimaryKey = keys;
- 
+
             return Buffer;
 
-//SQL target table script 
+            //SQL target table script 
             /*
             USE [GADATA]
            GO
@@ -838,49 +851,49 @@ CREATE UNIQUE NONCLUSTERED INDEX [IndexTableUniqueRows] ON gadata.robotga.rt_ala
             return Buffer;
 
 
-//SQL script to make tabl
-/*
-USE [GADATA]
-GO
-SET ANSI_NULLS ON
-GO
+            //SQL script to make tabl
+            /*
+            USE [GADATA]
+            GO
+            SET ANSI_NULLS ON
+            GO
 
-SET QUOTED_IDENTIFIER ON
-GO
+            SET QUOTED_IDENTIFIER ON
+            GO
 
-SET ANSI_PADDING ON
-GO
+            SET ANSI_PADDING ON
+            GO
 
-CREATE TABLE [RobotGA].[L_robotpositions](
-	[ID] [int] IDENTITY(1,1) NOT NULL,
-	[_timestamp] [datetime] NULL,
-	[file_timestamp] [datetime] NULL,
-	[controller_id] [tinyint] NULL,
-	[Owner] [varchar](50) NULL,
-	[Pos] [varchar](50) NULL,
-	[X] [real] NULL,
-	[Y] [real] NULL,
-	[Z] [real] NULL,
-	[a] [real] NULL,
-	[e] [real] NULL,
-	[r] [real] NULL,
-	[ax7] [real] NULL,
-	[ax8] [real] NULL,
-	[Cnfg] [varchar](20) NULL,
- CONSTRAINT [PK_L_robotpositions] PRIMARY KEY CLUSTERED 
-(
-	[ID] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-) ON [PRIMARY]
+            CREATE TABLE [RobotGA].[L_robotpositions](
+                [ID] [int] IDENTITY(1,1) NOT NULL,
+                [_timestamp] [datetime] NULL,
+                [file_timestamp] [datetime] NULL,
+                [controller_id] [tinyint] NULL,
+                [Owner] [varchar](50) NULL,
+                [Pos] [varchar](50) NULL,
+                [X] [real] NULL,
+                [Y] [real] NULL,
+                [Z] [real] NULL,
+                [a] [real] NULL,
+                [e] [real] NULL,
+                [r] [real] NULL,
+                [ax7] [real] NULL,
+                [ax8] [real] NULL,
+                [Cnfg] [varchar](20) NULL,
+             CONSTRAINT [PK_L_robotpositions] PRIMARY KEY CLUSTERED 
+            (
+                [ID] ASC
+            )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+            ) ON [PRIMARY]
 
-GO
+            GO
 
-SET ANSI_PADDING OFF
-GO
+            SET ANSI_PADDING OFF
+            GO
 
 
 
- */
+             */
 
         }
         //function to convert a comau date string to datetime (handles all possible data types for comau)
@@ -894,16 +907,16 @@ GO
             // second possible comau date type
             // ad_date = "1-OCT-14 17:40:45"; //datepatern that would be provided 
             string pattern2 = "d-MMM-yy HH:mm:ss";
-             CultureInfo ci = CultureInfo.CreateSpecificCulture("en-GB");
-             DateTimeFormatInfo dtfi = ci.DateTimeFormat;
-             dtfi.AbbreviatedMonthNames = new string[] { "JAN", "FEB", "MAR", 
+            CultureInfo ci = CultureInfo.CreateSpecificCulture("en-GB");
+            DateTimeFormatInfo dtfi = ci.DateTimeFormat;
+            dtfi.AbbreviatedMonthNames = new string[] { "JAN", "FEB", "MAR", 
                                                    "APR", "MAY", "JUN", 
                                                    "JUL", "AUG", "SEP", 
                                                    "OCT", "NOV", "DEC", "" };
-             dtfi.AbbreviatedMonthGenitiveNames = dtfi.AbbreviatedMonthNames;
+            dtfi.AbbreviatedMonthGenitiveNames = dtfi.AbbreviatedMonthNames;
             // thrd posibile coma data type
             //ad_date = "Sun Aug 31 01:27:00 2014";
-             string pattern3 = "ddd MMM dd HH:mm:ss yyyy";
+            string pattern3 = "ddd MMM dd HH:mm:ss yyyy";
             if (DateTime.TryParseExact(ad_date.Trim(), pattern1, null, DateTimeStyles.AdjustToUniversal, out parsedDate))
             {
                 //Console.WriteLine("Converted '{0}' to {1}.", ad_date, parsedDate);
@@ -921,13 +934,13 @@ GO
             }
             else if (ad_date.Contains("00-")) //y2k bug 
             {
-              Debug.Message("dt convert", "y2kbug trow:  " + ad_date);
-              return Convert.ToDateTime("2000-01-01 00:00:00.00");
+                Debug.Message("dt convert", "y2kbug trow:  " + ad_date);
+                return Convert.ToDateTime("2000-01-01 00:00:00.00");
             }
 
             else
             {
-                Debug.Message("Dt converter" ,"Unable to convert: " + ad_date + "to a date and time.");
+                Debug.Message("Dt converter", "Unable to convert: " + ad_date + "to a date and time.");
                 return parsedDate;
             }
         }
@@ -937,10 +950,10 @@ GO
             String Result = "";
             var regexR = new Regex(@"(\d\d\d\d\d)R(\d\d)");
             var matchR = regexR.Match(As_inString);
-             if (matchR.Success) { Result = matchR.Groups[1].Value + 'R' + matchR.Groups[2].Value; }
-             var regexP = new Regex(@"(\d\d\d\d\d)P(\d\d)");
-             var matchP = regexP.Match(As_inString);
-             if (matchP.Success) {Result = matchP.Groups[1].Value + 'P' + matchP.Groups[2].Value; }
+            if (matchR.Success) { Result = matchR.Groups[1].Value + 'R' + matchR.Groups[2].Value; }
+            var regexP = new Regex(@"(\d\d\d\d\d)P(\d\d)");
+            var matchP = regexP.Match(As_inString);
+            if (matchP.Success) { Result = matchP.Groups[1].Value + 'P' + matchP.Groups[2].Value; }
             return Result;
         }
         //function to extract tool id from a string 
@@ -955,7 +968,7 @@ GO
             //extract the C3G decomplir from the resource into the executionpath
             byte[] exeBytes = Properties.Resources.pdl2_v561;
             string exeToRun = new Uri(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase) + @"\pdl2_v561.exe").LocalPath;
-            if (!File.Exists(exeToRun)) {  using (FileStream exeFile = new FileStream(exeToRun, FileMode.CreateNew)) { exeFile.Write(exeBytes, 0, exeBytes.Length); } }
+            if (!File.Exists(exeToRun)) { using (FileStream exeFile = new FileStream(exeToRun, FileMode.CreateNew)) { exeFile.Write(exeBytes, 0, exeBytes.Length); } }
             // Use ProcessStartInfo class
             ProcessStartInfo startInfo = new ProcessStartInfo();
             startInfo.WorkingDirectory = as_FullFilepath.Replace(Path.GetFileName(as_FullFilepath), "").Trim();
@@ -965,31 +978,26 @@ GO
             startInfo.WindowStyle = ProcessWindowStyle.Hidden;
             startInfo.RedirectStandardOutput = true;
             startInfo.Arguments = @"/B " + as_FullFilepath;
-            try { using (Process exeProcess = Process.Start(startInfo)){ exeProcess.WaitForExit(); }}
+            try { using (Process exeProcess = Process.Start(startInfo)) { exeProcess.WaitForExit(); } }
             catch { Debug.Message("TranslationErr", "robotid: " + GetC3GRobotID(GetRobotName(as_FullFilepath)) + " For: " + GetRobotName(as_FullFilepath)); }
         }
         static void TranslateC4G(String as_FullFilepath)
         {
+            //extract the C4G decomplir from the resource into the executionpath
+            byte[] exeBytes = Properties.Resources.pdl2_v561;
+            string exeToRun = new Uri(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase) + @"\c4gtr.exe").LocalPath;
+            if (!File.Exists(exeToRun)) { using (FileStream exeFile = new FileStream(exeToRun, FileMode.CreateNew)) { exeFile.Write(exeBytes, 0, exeBytes.Length); } }
             // Use ProcessStartInfo class
             ProcessStartInfo startInfo = new ProcessStartInfo();
-            startInfo.WorkingDirectory = @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\99070R01\"; // as_FullFilepath.Replace(Path.GetFileName(as_FullFilepath), "").Trim();
+            startInfo.WorkingDirectory = as_FullFilepath.Replace(Path.GetFileName(as_FullFilepath), "").Trim();
             startInfo.CreateNoWindow = false;
             startInfo.UseShellExecute = false;
-            startInfo.FileName = @"c:\temp\c4gtr.exe";
+            startInfo.FileName = exeToRun; //@"C:\temp\c4gtr.exe"; //
             startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            //startInfo.RedirectStandardOutput = true;
-            startInfo.Arguments = @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\99070R01\LY413.var";  //as_FullFilepath;
-            try
-            {
-                using (Process exeProcess = Process.Start(startInfo))
-                {
-                    exeProcess.WaitForExit();
-                }
-            }
-            catch
-            {
-                Console.WriteLine("TranslationErr");
-            }
+            startInfo.RedirectStandardOutput = true;
+            startInfo.Arguments = @"/B /V " + Path.GetFileName(as_FullFilepath);
+            try { using (Process exeProcess = Process.Start(startInfo)) { exeProcess.WaitForExit(); } }
+            catch { Debug.Message("TranslationErr", "robotid: " + GetC3GRobotID(GetRobotName(as_FullFilepath)) + " For: " + GetRobotName(as_FullFilepath)); }
         }
         //*****************************************************************************************************************************************
         //SQL
@@ -1004,18 +1012,18 @@ GO
             string connectionString = "user id=GADATA; password=GADATA987; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=5";
             DateTime ResultTs;
             using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    SqlCommand commandGetTS = new SqlCommand(
-             "select TOP 1 ISNULL(error_timestamp," +
-             "(select TOP 1 error_timestamp from GADATA.RobotGA.rt_alarm WHERE (controller_id LIKE @robotID) AND (error_timestamp < getdate()) ORDER BY error_timestamp DESC))" +
-             "from GADATA.RobotGA.rt_alarm WHERE (controller_id LIKE @robotID)  AND  (error_timestamp <= @LasterrTS) ORDER BY error_timestamp DESC", connection);
-                    commandGetTS.Parameters.Add(new SqlParameter("robotID", firstrow[1]));
-                    commandGetTS.Parameters.Add(new SqlParameter("LasterrTS", OldestError));
-                    ResultTs = System.Convert.ToDateTime(commandGetTS.ExecuteScalar());
-                    connection.Close();
-                    connection.Dispose();
-                }
+            {
+                connection.Open();
+                SqlCommand commandGetTS = new SqlCommand(
+         "select TOP 1 ISNULL(error_timestamp," +
+         "(select TOP 1 error_timestamp from GADATA.RobotGA.rt_alarm WHERE (controller_id LIKE @robotID) AND (error_timestamp < getdate()) ORDER BY error_timestamp DESC))" +
+         "from GADATA.RobotGA.rt_alarm WHERE (controller_id LIKE @robotID)  AND  (error_timestamp <= @LasterrTS) ORDER BY error_timestamp DESC", connection);
+                commandGetTS.Parameters.Add(new SqlParameter("robotID", firstrow[1]));
+                commandGetTS.Parameters.Add(new SqlParameter("LasterrTS", OldestError));
+                ResultTs = System.Convert.ToDateTime(commandGetTS.ExecuteScalar());
+                connection.Close();
+                connection.Dispose();
+            }
             TimeSpan duration = OldestError - ResultTs;
             // OK => no gap
             if (OldestError == ResultTs) { }//Console.WriteLine("NO Datagap"); }
@@ -1033,7 +1041,7 @@ GO
                 row["error_number"] = 99001;
                 row["error_severity"] = 4;
                 row["error_text"] = "Datagap detected WorstCaseDataLoss: " + duration;
-                AS_intable.Rows.Add(row);  
+                AS_intable.Rows.Add(row);
             }
             return AS_intable;
         }
@@ -1046,15 +1054,15 @@ GO
             {
                 connection.Open();
                 // Perform an initial count on the destination table.
-                SqlCommand commandGetId = new SqlCommand("SELECT top  1 id from GADATA.RobotGA.Robot where robot.RobotName LIKE '%" + As_inString +" %' AND Robot.type = 1", connection);
+                SqlCommand commandGetId = new SqlCommand("SELECT top  1 id from GADATA.RobotGA.Robot where robot.RobotName LIKE '%" + As_inString + " %' AND Robot.type = 1", connection);
                 Int32 Robotid = System.Convert.ToInt16(commandGetId.ExecuteScalar());
                 connection.Close();
-              //  Console.WriteLine("Got id {0} for robot {1} from sql", Robotid, As_inString);
-              //  Console.ReadLine();
+                //  Console.WriteLine("Got id {0} for robot {1} from sql", Robotid, As_inString);
+                //  Console.ReadLine();
                 connection.Dispose();
                 return Robotid;
-            }  
-            
+            }
+
         }
         static Int32 GetC4GRobotID(String As_inString)
         {
@@ -1075,7 +1083,7 @@ GO
 
         }
         //Bulk Copy to Gadata
-        static void BulkCopyToGadata (DataTable adt_table, string as_destination)
+        static void BulkCopyToGadata(DataTable adt_table, string as_destination)
         {
             {
                 string connectionString = "user id=GADATA; password=GADATA987; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=30";
@@ -1121,22 +1129,22 @@ GO
             List<string> List = new List<string>();
             try
             {
-               foreach (string filepath in als_filepaths)
-               {
-                   Console.WriteLine("\r Searching: {1} Found: {0:D3}", List.Count, filepath.Substring(Math.Max(0, filepath.Length - 40)));
-                   var allFiles = Directory.GetFiles(filepath, as_mask, SearchOption.AllDirectories);
-                foreach (string f in allFiles)
+                foreach (string filepath in als_filepaths)
                 {
-                    foreach (string exeptedFolder in als_exeptedFolders)
+                    Console.WriteLine("\r Searching: {1} Found: {0:D3}", List.Count, filepath.Substring(Math.Max(0, filepath.Length - 40)));
+                    var allFiles = Directory.GetFiles(filepath, as_mask, SearchOption.AllDirectories);
+                    foreach (string f in allFiles)
                     {
-                        if (f.Contains(exeptedFolder))
+                        foreach (string exeptedFolder in als_exeptedFolders)
                         {
-                            foreach (string exeptedfile in als_exeptedFiles) { if (f.Contains(exeptedfile)) { List.Add(f);}}
+                            if (f.Contains(exeptedFolder))
+                            {
+                                foreach (string exeptedfile in als_exeptedFiles) { if (f.Contains(exeptedfile)) { List.Add(f); } }
+                            }
                         }
                     }
                 }
             }
-           }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
@@ -1185,11 +1193,10 @@ GO
                 return false;
             }
         }
-
         //Deletes the file. (with savegard to only delete files in log location
         public static void SafeDelete(String fullPath)
         {
-            if (fullPath.IndexOf(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\", 0, StringComparison.CurrentCultureIgnoreCase) != -1) 
+            if (fullPath.IndexOf(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\", 0, StringComparison.CurrentCultureIgnoreCase) != -1)
             { File.Delete(fullPath); }
             else { Debug.Message("IllegalFiledelete", fullPath.Substring(Math.Max(0, fullPath.Length - 40))); }
         }
@@ -1216,9 +1223,9 @@ GO
                 releaseObject(xlApp);
                 releaseObject(xlWorkBook);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Debug.Message("Excel caller",ex.Message);
+                Debug.Message("Excel caller", ex.Message);
             }
         }
         static void releaseObject(object obj)
@@ -1237,7 +1244,26 @@ GO
                 GC.Collect();
             }
         }
-
+        public class ConsoleSpiner
+        {
+            int counter;
+            public ConsoleSpiner()
+            {
+                counter = 0;
+            }
+            public void Turn()
+            {
+                counter++;
+                switch (counter % 4)
+                {
+                    case 0: Console.Write("/"); break;
+                    case 1: Console.Write("-"); break;
+                    case 2: Console.Write("\\"); break;
+                    case 3: Console.Write("-"); break;
+                }
+                Console.SetCursorPosition(Console.CursorLeft - 1, Console.CursorTop);
+            }
+        }
 
     } // end of progam
 } // end of namespace
