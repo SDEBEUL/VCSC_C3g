@@ -91,6 +91,7 @@ class Program
             Debug.Init();
             Debug.Message("INFO", "System restarted");
 
+            /*
             //*****************************************************************************************************************************************
             //build file sytem watch 
             try { 
@@ -115,14 +116,31 @@ class Program
             Timer TriggerTimer = new System.Timers.Timer(7 * 24 * 60 * 60 * 1000); //run every week 
             TriggerTimer.Start();
             TriggerTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
+             */
             //*****************************************************************************************************************************************
+            //*****************************************************************************************************************************************
+            Console.WriteLine("Aschyn call of VER FILES scan");
+            Task.Run(() => VErfileScan());
+            //*****************************************************************************************************************************************
+            
+            
             ConsoleSpiner spin = new ConsoleSpiner();
             while (true)
             {
             System.Threading.Thread.Sleep(500);
             try
             {
-                if (Buffer.Count() == 0) { Console.Write("\r System ready (buffer empty)                               "); spin.Turn(); }
+                //big buffer table 
+                DataTable BigBuffer = MakeVerFileBufferTable();
+                BigBuffer.AcceptChanges();
+
+
+                if (Buffer.Count() == 0) 
+                {
+                    Console.Write("\r System ready (buffer empty)                           "); 
+                    spin.Turn();
+     
+                }
                 else
                 {
                     List<string> localbuffer = Buffer.getbuffer();
@@ -134,8 +152,18 @@ class Program
                             Console.Write("\r System ready | Filebuffer status: {0:D3} | Localbuffer:  {1:D3} ", Buffer.Count(), Cfilecount);
                             spin.Turn();
                             Cfilecount++;
-                            if (IsFileReady(file) && Buffer.Contains(file)) { HandelVarfile(file); }
-                            if (IsFileReady(file) && Buffer.Contains(file)) { HandelLogfile(file); }
+                            if (IsFileReady(file) && Buffer.Contains(file)) 
+                            { 
+                                if (IsC3GVer(file)) 
+                                { 
+                                   ReadC3GVErFile(file);
+                                    Buffer.Delete(file); 
+                                } 
+                                else 
+                                { Buffer.Delete(file); } 
+                            }
+                            //if (IsFileReady(file) && Buffer.Contains(file)) { HandelVarfile(file); }
+                            //if (IsFileReady(file) && Buffer.Contains(file)) { HandelLogfile(file); }
                             else if (!File.Exists(file)) { Buffer.Delete(file); Debug.Message("FileNotExistWhileInBuffer", file.Substring(Math.Max(0, file.Length - 40))); }
                         }
                         catch (Exception ex) { Debug.Message("Buffersweep", file.Substring(Math.Max(0, file.Length - 40)) + " msg: " + ex.Message); }
@@ -165,6 +193,19 @@ class Program
             List<string> VARExeptedfiles = new List<string>() { "LY413.VAR", "LY283.VAR", "LY55X.VAR", "LTOOL_", "TT_TOOL1.VAR", "TUVFRAME.VAR" };
             List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
             List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VAR", VARExeptedfiles, VARExeptedFolders);
+            foreach (string file in VARResultList) { Buffer.Record(file); }
+        }
+        //scan for var files
+        private static void VErfileScan()
+        {
+            List<string> VARSearchpaths = new List<String>() {@"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\"};
+              /*  @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\", 
+                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\",
+                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
+                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};*/
+            List<string> VARExeptedfiles = new List<string>() { ".VER" };
+            List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
+            List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VER", VARExeptedfiles, VARExeptedFolders);
             foreach (string file in VARResultList) { Buffer.Record(file); }
         }
         // Event handeler for priodic scan ecent 
@@ -270,6 +311,36 @@ class Program
             else { return "Unknown"; }        
           }
     }
+        //chekc if file is C3G ver file 
+            //check if tile is errorlog
+        public static bool IsC3GVer(string fullFilePath)
+        {
+        Stream stream = File.Open(fullFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using (var reader = new StreamReader(stream))
+        {
+            var hasRamdisk = false;
+            var hasSoftwarever = false;
+
+
+            while (!reader.EndOfStream)
+            {
+                var line = reader.ReadLine();
+                if (!hasRamdisk)
+                {
+                    if (line.Contains("Ram Disk volume [RAMDISK]"))  { hasRamdisk = true; }
+                }
+                if (!hasSoftwarever)
+                {
+                    if (line.Contains("SOFTWARE VERSIONS list file for robot:")) { hasSoftwarever = true; }
+                }
+
+                //saves me from reading whole file
+                if (hasRamdisk && hasSoftwarever){break;}
+            }
+            if (hasRamdisk && hasSoftwarever) {return true; }
+            else { return false; }        
+        }
+        }
         //Read the logfile
         private static DataTable ReadC3GErrlog(string fullFilePath)
         {
@@ -521,7 +592,73 @@ class Program
             }
             return Buffer;
         }
-        //Make datatable templates
+        private static DataTable ReadC3GVErFile(string fullFilePath)
+        {
+            try
+            {
+                /*
+                Module: DGUN     Version: 2.20  Size:    4264 bytes  Date: 29-NOV-14 17:45:20       <== default 
+                Module: DXGUN    not present on this controller                                     <== not present so must exclude
+                Module: RSSSSSRR Version:  ---  Size:    1365 bytes  Date: 29-NOV-14 17:51:46       <== present bu no tracker . (return ver 0) 
+                Application: A_SW1B Version: 5.31v                      <== default 
+                Application:   A_GL not present on this controller      <== not present 
+                 * */
+                string[] lines = System.IO.File.ReadAllLines(fullFilePath);
+                // buffer table
+                DataTable Buffer = MakeVerFileBufferTable();
+                DataRow row = Buffer.NewRow();
+                Buffer.AcceptChanges();
+                foreach (string line in lines)
+                {
+                     // HD modules 
+                    //finds begin of module line And does not contain not present
+                    if (line.Contains("Module:") && !line.Contains("not present "))
+                    {
+                        String Module = ExtractString(line,"Module:","Version:");
+                        String Version = ExtractString(line, "Version:", "Size:");
+                        String Size = ExtractString(line, "Size:", "bytes");
+                        String Bytes = ExtractString(line, "bytes", "Date:");
+                        String Date = line.Substring((line.IndexOf("Date:")+5), 19).Trim();
+                        //Console.WriteLine("Module: {0} Version:  {1} Size: {2} bytes {3} Date: {4}", Module, Version, Size, Bytes, Date);
+                        row = Buffer.NewRow();
+                        row["controller_name"] = GetRobotName(fullFilePath);
+                        row["module"] = Module;
+                        row["version"] = Version;
+                        Buffer.Rows.Add(row);
+                    
+                    }
+                    // appl soft 
+                    //finds begin of module line And does not contain not present
+                    if (line.Contains("Application:") && !line.Contains("not present "))
+                    {
+                        String Module = ExtractString(line, "Application:", "Version:");
+                        String Version = ExtractString(line, "Version:", "v"); //possible that the V char does not live in al differnt appl soft 
+                        //Console.WriteLine("Module: {0} Version:  {1} Size: {2} bytes {3} Date: {4}", Module, Version, Size, Bytes, Date);
+                        row = Buffer.NewRow();
+                        row["controller_name"] = GetRobotName(fullFilePath);
+                        row["module"] = Module;
+                        row["version"] = Version;
+                        Buffer.Rows.Add(row);
+                    
+                    }
+                }
+                return Buffer;
+            }
+            catch (Exception e)
+            {
+                Debug.Message("VerReading", fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)) + " Msg: " + e.Message);
+                DataTable Buffer = MakeErrorlogBufferTable();
+                return Buffer;
+            }
+        }    
+    //function to get data(string) between 2 other string regex matches
+       static string ExtractString(string s, string start, string end)
+        {
+            int startIndex = s.IndexOf(start) + start.Length;
+            int endIndex = s.IndexOf(end, startIndex);
+            return s.Substring(startIndex, endIndex - startIndex).Trim();
+        }
+     //Make datatable templates
         private static DataTable MakeErrorlogBufferTable()
         {
             DataTable Buffer = new DataTable("Buffer");
@@ -883,6 +1020,28 @@ GO
 
 
  */
+
+        }
+        private static DataTable MakeVerFileBufferTable()
+        {
+            DataTable Buffer = new DataTable("Verfile");
+
+            DataColumn controller_id = new DataColumn();
+            controller_id.DataType = System.Type.GetType("System.String");
+            controller_id.ColumnName = "controller_name";
+            Buffer.Columns.Add(controller_id);
+
+            DataColumn Module = new DataColumn();
+            Module.DataType = System.Type.GetType("System.String");
+            Module.ColumnName = "Module";
+            Buffer.Columns.Add(Module);
+
+            DataColumn Version = new DataColumn();
+            Version.DataType = System.Type.GetType("System.String");
+            Version.ColumnName = "Version";
+            Buffer.Columns.Add(Version);
+
+            return Buffer;
 
         }
         //function to convert a comau date string to datetime (handles all possible data types for comau)
