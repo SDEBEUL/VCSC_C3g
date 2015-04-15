@@ -122,7 +122,9 @@ class Program
             Console.WriteLine("Aschyn call of VER FILES scan");
             Task.Run(() => VErfileScan());
             //*****************************************************************************************************************************************
-            
+            //big buffer table 
+            DataTable BigBuffer = MakeVerFileBufferTable();
+            BigBuffer.AcceptChanges();
             
             ConsoleSpiner spin = new ConsoleSpiner();
             while (true)
@@ -130,16 +132,23 @@ class Program
             System.Threading.Thread.Sleep(500);
             try
             {
-                //big buffer table 
-                DataTable BigBuffer = MakeVerFileBufferTable();
-                BigBuffer.AcceptChanges();
-
 
                 if (Buffer.Count() == 0) 
                 {
                     Console.Write("\r System ready (buffer empty)                           "); 
                     spin.Turn();
-     
+                    
+               foreach (DataRow row in BigBuffer.Rows)
+               {
+                   Console.WriteLine("");
+                   for (int x = 0; x < BigBuffer.Columns.Count; x++)
+                   {
+                       Console.Write(row[x].ToString() + " ");
+                   }
+
+               }
+               
+
                 }
                 else
                 {
@@ -155,9 +164,13 @@ class Program
                             if (IsFileReady(file) && Buffer.Contains(file)) 
                             { 
                                 if (IsC3GVer(file)) 
-                                { 
-                                   ReadC3GVErFile(file);
-                                    Buffer.Delete(file); 
+                                {
+                                    BigBuffer = ReadC3GVErFile(file);
+                                    Buffer.Delete(file);
+                                    DataTable dt = ReadC3GVErFile(file);
+                                    for (int i = 0; i < dt.Rows.Count; i++)
+                                    { BigBuffer.ImportRow(dt.Rows[i]); }
+
                                 } 
                                 else 
                                 { Buffer.Delete(file); } 
@@ -337,7 +350,7 @@ class Program
                 //saves me from reading whole file
                 if (hasRamdisk && hasSoftwarever){break;}
             }
-            if (hasRamdisk && hasSoftwarever) {return true; }
+            if (hasRamdisk && hasSoftwarever)  {return true; }
             else { return false; }        
         }
         }
@@ -618,7 +631,7 @@ class Program
                         String Version = ExtractString(line, "Version:", "Size:");
                         String Size = ExtractString(line, "Size:", "bytes");
                         String Bytes = ExtractString(line, "bytes", "Date:");
-                        String Date = line.Substring((line.IndexOf("Date:")+5), 19).Trim();
+                        String Date = line.Substring((line.IndexOf("Date:")+5),19 ).Trim();
                         //Console.WriteLine("Module: {0} Version:  {1} Size: {2} bytes {3} Date: {4}", Module, Version, Size, Bytes, Date);
                         row = Buffer.NewRow();
                         row["controller_name"] = GetRobotName(fullFilePath);
