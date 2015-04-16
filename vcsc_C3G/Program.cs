@@ -137,18 +137,7 @@ class Program
                 {
                     Console.Write("\r System ready (buffer empty)                           "); 
                     spin.Turn();
-                    
-               foreach (DataRow row in BigBuffer.Rows)
-               {
-                   Console.WriteLine("");
-                   for (int x = 0; x < BigBuffer.Columns.Count; x++)
-                   {
-                       Console.Write(row[x].ToString() + " ");
-                   }
-
-               }
-               
-
+          
                 }
                 else
                 {
@@ -167,9 +156,9 @@ class Program
                                 {
                                     BigBuffer = ReadC3GVErFile(file);
                                     Buffer.Delete(file);
-                                    DataTable dt = ReadC3GVErFile(file);
-                                    for (int i = 0; i < dt.Rows.Count; i++)
-                                    { BigBuffer.ImportRow(dt.Rows[i]); }
+                                    Console.WriteLine(file);
+                                    ReadC3GVErFile(file).WriteToCsvFile(@"c:\temp\test.csv");
+            
 
                                 } 
                                 else 
@@ -211,11 +200,11 @@ class Program
         //scan for var files
         private static void VErfileScan()
         {
-            List<string> VARSearchpaths = new List<String>() {@"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\"};
-              /*  @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\", 
+            List<string> VARSearchpaths = new List<String>() {@"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\",
+                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\", 
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
-                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};*/
+                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};
             List<string> VARExeptedfiles = new List<string>() { ".VER" };
             List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
             List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VER", VARExeptedfiles, VARExeptedFolders);
@@ -1409,4 +1398,32 @@ GO
 
 
     } // end of progam
+
+          // datatablto csv 
+public static class DataTableExtensions {
+        public static void WriteToCsvFile(this DataTable dataTable, string filePath) {
+            StringBuilder fileContent = new StringBuilder();
+
+            foreach (var col in dataTable.Columns) {
+                fileContent.Append(col.ToString() + ",");
+            }
+
+            fileContent.Replace(",", System.Environment.NewLine, fileContent.Length - 1, 1);
+
+
+
+            foreach (DataRow dr in dataTable.Rows) {
+
+                foreach (var column in dr.ItemArray) {
+                    fileContent.Append("\"" + column.ToString() + "\",");
+                }
+
+                fileContent.Replace(",", System.Environment.NewLine, fileContent.Length - 1, 1);
+            }
+
+           // System.IO.File.WriteAllText(filePath, fileContent.ToString());
+            System.IO.File.AppendAllText (filePath, fileContent.ToString());
+        }
+    }
+
 } // end of namespace
