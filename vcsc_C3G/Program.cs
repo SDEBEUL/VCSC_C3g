@@ -86,7 +86,7 @@ class Program
          //Main
         static void Main(string[] args)
         {
-            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 15W15D04";
+            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 15W34D03";
             Console.BufferHeight = 100;
             Debug.Init();
             Debug.Message("INFO", "System restarted");
@@ -158,12 +158,13 @@ class Program
         //scan for var files
         private static void VarfileScan()
         {
-            List<string> VARSearchpaths = new List<String>() { 
+            List<string> VARSearchpaths = new List<String>() {
+                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\", 
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};
-            List<string> VARExeptedfiles = new List<string>() { "LY413", "LY283", "LY55X", "LTOOL_", "TT_TOOL1.VAR", "TUVFRAME.VAR", "LArc", "LGripp", "LStatGun", "LgunWs","Lstud" };
+            List<string> VARExeptedfiles = new List<string>() { "LY413", "LY283", "LY55X", "LTOOL_", "TT_TOOL1.VAR", "TUVFRAME.VAR", "LArc", "LGripp", "LStatGun", "LGun","Lstud" };
             List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
             List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VAR", VARExeptedfiles, VARExeptedFolders);
             foreach (string file in VARResultList) { Buffer.Record(file); }
@@ -218,25 +219,30 @@ class Program
             if (fullFilePath.IndexOf("var", 0, StringComparison.CurrentCultureIgnoreCase) != -1)
             {
                 Buffer.Delete(fullFilePath);
-                Int32 RobotID = 0;
+                Int32 C3GRobotID = 0;
+                Int32 C4GRobotID = 0;
                 //check if the robot is C3G and translate
                 if (GetC3GRobotID(GetRobotName(fullFilePath)) != 0)
-                { TranslateC3G(fullFilePath); RobotID = GetC3GRobotID(GetRobotName(fullFilePath)); } 
+                { TranslateC3G(fullFilePath); C3GRobotID = GetC3GRobotID(GetRobotName(fullFilePath)); } 
                 //check if the robot is C4G and translate
-                else if (GetC4GRobotID(GetRobotName(fullFilePath)) != 0) 
-                { TranslateC4G(fullFilePath); RobotID = GetC4GRobotID(GetRobotName(fullFilePath)); }
+                else if (GetC4GRobotID(GetRobotName(fullFilePath)) != 0)
+                { TranslateC4G(fullFilePath); C4GRobotID = GetC4GRobotID(GetRobotName(fullFilePath)); }
                 else 
                 { Debug.Message("VarReading", fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)) + " msg: translation not found"); return; }
 
-                if (File.Exists(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase)) && RobotID != 0)
+                if (File.Exists(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase)) && (C3GRobotID != 0 || C4GRobotID != 0))
                 {
                     DataTable buffer = new DataTable();
-                    //Console.WriteLine("*Reading***********************************************************");
-                    buffer = ReadPosVarFile(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase), RobotID);
-                    //Console.WriteLine("*Pushing***********************************************************");
-
-                    BulkCopyToGadata("C4G", buffer, "L_robotpositions");
-                    //Console.WriteLine("*Delete lsv***********************************************************");
+                    if (C4GRobotID != 0)
+                    {
+                       buffer = ReadPosVarFile(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase), C4GRobotID);
+                       BulkCopyToGadata("C4G", buffer, "L_robotpositions"); 
+                    }
+                    if (C3GRobotID != 0) 
+                    {
+                        buffer = ReadPosVarFile(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase), C3GRobotID);
+                        BulkCopyToGadata("ROBOTGA", buffer, "L_robotpositions"); 
+                    }
                     File.Delete(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase));
                 }
 
@@ -414,10 +420,12 @@ class Program
             int TFnum = 1;
             Int32 numtools = 0;
             string sPatternPOS = "POS  Priv";
-            string sPatternXTND1 = "XTND Arm: 1 Ax: 1 Priv";
-            string sPatternXTND2 = "XTND Arm: 1 Ax: 2 Priv";
+            string sPatternXTND1 = "XTND Arm: 1 Ax: 1";
+            string sPatternXTND2 = "XTND Arm: 1 Ax: 2";
             string sPatternTool = "vp_tools";  
-            string sPatternFrame = "vp_frames"; 
+            string sPatternFrame = "vp_frames";
+            string sPatternC4GFrame = "REC tuye_frame_table";
+            string sPatternC4GTool = "REC ttye_tool_table";
             // buffer table
             DataTable Buffer = MakePosBufferTable();
             DataRow row = Buffer.NewRow();
@@ -431,6 +439,8 @@ class Program
                 Boolean bXTND2mode = false;
                 Boolean Toolmode = false;
                 Boolean Framemode = false;
+                Boolean C4gFramemode = false;
+                Boolean C4gToolmode = false;
                 string posname = "";
                 string cnfg = "";
                 float x = 0.0f;
@@ -441,6 +451,7 @@ class Program
                 float r = 0.0f;
                 float ax7 = 0.0f;
                 float ax8 = 0.0f;
+                Int16 ratio = 1; //ratio is the relation beween the posname line and the line where we read the position. (implemented for c4g tool / frame)
                 //finds position lines
                 if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternPOS, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) {bPOSmode = true;}  
                 if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternXTND1, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) {bXTND1mode = true;}
@@ -451,10 +462,15 @@ class Program
                 if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternFrame, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) { Framemode = true;
                  numtools = Int32.Parse(line.Substring((line.IndexOf("APOS[") + 5), 2).Trim());
                 }
+                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternC4GFrame, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) { C4gFramemode = true; ratio = 2; }
+                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternC4GTool, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) { C4gToolmode = true; ratio = 2; }
 
+                // extract pos name (pos name should be before the MATCH on same line)
                 if (bPOSmode) { posname = line.Substring(0, line.IndexOf(sPatternPOS)).Trim(); };
                 if (bXTND1mode) { posname = line.Substring(0, line.IndexOf(sPatternXTND1)).Trim(); };
                 if (bXTND2mode) { posname = line.Substring(0, line.IndexOf(sPatternXTND2)).Trim(); };
+                if (C4gFramemode) { posname = line.Substring(0, line.IndexOf(sPatternC4GFrame)).Trim(); };
+                if (C4gToolmode) { posname = line.Substring(0, line.IndexOf(sPatternC4GTool)).Trim(); };
             NextTF:
                 if (Toolmode && TFnum < numtools)
                 {
@@ -476,33 +492,33 @@ class Program
 
 
 
-            if (bPOSmode | bXTND1mode | bXTND2mode | Toolmode | Framemode)
+            if (bPOSmode | bXTND1mode | bXTND2mode | Toolmode | Framemode | C4gFramemode | C4gToolmode)
                 {
                     //get position from next line  Line ex:  X:4606.30 Y:-366.59 Z:1373.78 A: -15.32 E:  37.21 R:-154.37
-                    if (!lines[index + 1].Contains("*******")) //handels uninit positions
+                    if (!lines[index + ratio].Contains("*******")) //handels uninit positions
                     {
                        // string currentline1 = line;
                        // string currentline = lines[index + 1];
                        // Console.WriteLine(currentline);
-                        x = float.Parse(lines[index + 1].Split(':')[1].TrimEnd(new char[] { 'Y' }).Trim(), CultureInfo.InstalledUICulture);
-                        y = float.Parse(lines[index + 1].Split(':')[2].TrimEnd(new char[] { 'Z' }).Trim(), CultureInfo.InstalledUICulture);
-                        z = float.Parse(lines[index + 1].Split(':')[3].TrimEnd(new char[] { 'A' }).Trim(), CultureInfo.InstalledUICulture);
-                        a = float.Parse(lines[index + 1].Split(':')[4].TrimEnd(new char[] { 'E' }).Trim(), CultureInfo.InstalledUICulture);
-                        e = float.Parse(lines[index + 1].Split(':')[5].TrimEnd(new char[] { 'R' }).Trim(), CultureInfo.InstalledUICulture);
-                        if (bPOSmode) {r = float.Parse(lines[index + 1].Split(':')[6].Trim(), CultureInfo.InstalledUICulture);}
+                        x = float.Parse(lines[index + ratio].Split(':')[1].TrimEnd(new char[] { 'Y' }).Trim(), CultureInfo.InstalledUICulture);
+                        y = float.Parse(lines[index + ratio].Split(':')[2].TrimEnd(new char[] { 'Z' }).Trim(), CultureInfo.InstalledUICulture);
+                        z = float.Parse(lines[index + ratio].Split(':')[3].TrimEnd(new char[] { 'A' }).Trim(), CultureInfo.InstalledUICulture);
+                        a = float.Parse(lines[index + ratio].Split(':')[4].TrimEnd(new char[] { 'E' }).Trim(), CultureInfo.InstalledUICulture);
+                        e = float.Parse(lines[index + ratio].Split(':')[5].TrimEnd(new char[] { 'R' }).Trim(), CultureInfo.InstalledUICulture);
+                        if (bPOSmode) { r = float.Parse(lines[index + ratio].Split(':')[6].Trim(), CultureInfo.InstalledUICulture); }
                         if (bXTND1mode)
                         {
-                            r = float.Parse(lines[index + 1].Split(':')[6].TrimEnd(new char[] { '1' }).Trim(), CultureInfo.InstalledUICulture);
-                            ax7 = float.Parse(lines[index + 1].Split(':')[7].Trim(), CultureInfo.InstalledUICulture);
+                            r = float.Parse(lines[index + ratio].Split(':')[6].TrimEnd(new char[] { '1' }).Trim(), CultureInfo.InstalledUICulture);
+                            ax7 = float.Parse(lines[index + ratio].Split(':')[7].Trim(), CultureInfo.InstalledUICulture);
                         }
                         if (bXTND2mode)
                         {
-                            r = float.Parse(lines[index + 1].Split(':')[6].TrimEnd(new char[] { '1' }).Trim(), CultureInfo.InstalledUICulture);
-                            ax7 = float.Parse(lines[index + 1].Split(':')[7].TrimEnd(new char[] { '2' }).Trim(), CultureInfo.InstalledUICulture);
-                            ax8 = float.Parse(lines[index + 1].Split(':')[8].Trim(), CultureInfo.InstalledUICulture);
+                            r = float.Parse(lines[index + ratio].Split(':')[6].TrimEnd(new char[] { '1' }).Trim(), CultureInfo.InstalledUICulture);
+                            ax7 = float.Parse(lines[index + ratio].Split(':')[7].TrimEnd(new char[] { '2' }).Trim(), CultureInfo.InstalledUICulture);
+                            ax8 = float.Parse(lines[index + ratio].Split(':')[8].Trim(), CultureInfo.InstalledUICulture);
                         }
                         //get cnfg flags from next line Line ex: CNFG: ''
-                        cnfg = lines[index + 2].Replace("CNFG:", "").Replace("'", "").Trim();
+                        cnfg = lines[index + ratio + 1].Replace("CNFG:", "").Replace("'", "").Trim();
                     }
                     //
                     //Console.WriteLine("robot: {9} File: '{0}'  Pos: '{1}' x: '{2}' y: '{3}' z: '{4}' a: '{5}' e: '{6}' r: '{7}' cnfg: '{8}'",
@@ -527,6 +543,7 @@ class Program
 
                     if (Toolmode | Framemode) { index = index + 2; goto NextTF; }
                 }
+
                 index++;
             }
             return Buffer;
@@ -913,7 +930,7 @@ GO
                                                    "JUL", "AUG", "SEP", 
                                                    "OCT", "NOV", "DEC", "" };
              dtfi.AbbreviatedMonthGenitiveNames = dtfi.AbbreviatedMonthNames;
-            // thrd posibile coma data type
+            // thrd posibile comau data type
             //ad_date = "Sun Aug 31 01:27:00 2014";
              string pattern3 = "ddd MMM dd HH:mm:ss yyyy";
             if (DateTime.TryParseExact(ad_date.Trim(), pattern1, null, DateTimeStyles.AdjustToUniversal, out parsedDate))
@@ -998,8 +1015,7 @@ GO
             startInfo.Arguments = @"/B /V " + Path.GetFileName(as_FullFilepath);
             using (Process exeProcess = Process.Start(startInfo)) {exeProcess.WaitForExit(); }
             }
-            catch (Exception ex) { Debug.Message("TranslationErr", "For: "  + GetRobotName(as_FullFilepath));
-            Console.WriteLine("C4G trans err exeption: {0}", ex.Message);
+            catch (Exception ex) { Debug.Message("TranslationErr", "For: "  + GetRobotName(as_FullFilepath) +"  M: " + ex.Message);
             }
         }
         //*****************************************************************************************************************************************
