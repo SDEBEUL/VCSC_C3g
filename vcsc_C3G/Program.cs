@@ -90,9 +90,9 @@ class Program
             Console.BufferHeight = 100;
             Debug.Init();
             Debug.Message("INFO", "System restarted");
-
             //*****************************************************************************************************************************************
             //build file sytem watch 
+            
             try { 
             FileSystemWatcher watcher = new FileSystemWatcher();
             watcher.Path = @"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\";
@@ -116,6 +116,7 @@ class Program
             TriggerTimer.Start();
             TriggerTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
             //*****************************************************************************************************************************************
+            
             ConsoleSpiner spin = new ConsoleSpiner();
             while (true)
             {
@@ -162,11 +163,12 @@ class Program
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};
-            List<string> VARExeptedfiles = new List<string>() { "LY413.VAR", "LY283.VAR", "LY55X.VAR", "LTOOL_", "TT_TOOL1.VAR", "TUVFRAME.VAR" };
+            List<string> VARExeptedfiles = new List<string>() { "LY413", "LY283", "LY55X", "LTOOL_", "TT_TOOL1.VAR", "TUVFRAME.VAR", "LArc", "LGripp", "LStatGun", "LgunWs","Lstud" };
             List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
             List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VAR", VARExeptedfiles, VARExeptedFolders);
             foreach (string file in VARResultList) { Buffer.Record(file); }
         }
+
         // Event handeler for priodic scan ecent 
         private static void OnTimedEvent(object source, ElapsedEventArgs e) 
         { 
@@ -189,14 +191,14 @@ class Program
                     case "Errorlog":
                         buffertable = ReadC3GErrlog(fullFilepath);
                         buffertable = CheckDataConsistensyC3G(buffertable);
-                        BulkCopyToGadata(buffertable, "rt_alarm");
+                        BulkCopyToGadata("ROBOTGA",buffertable, "rt_alarm");
                         SafeDelete(fullFilepath);
                         Buffer.Delete(fullFilepath);
                         RemoveEmptyFolders(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
                         break;
                     case "Toollog":
                         buffertable = ReadC3GToollog(fullFilepath);
-                        BulkCopyToGadata(buffertable, "rt_toollog");
+                        BulkCopyToGadata("ROBOTGA", buffertable, "rt_toollog");
                         SafeDelete(fullFilepath);
                         Buffer.Delete(fullFilepath);
                         RemoveEmptyFolders(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
@@ -218,18 +220,26 @@ class Program
                 Buffer.Delete(fullFilePath);
                 Int32 RobotID = 0;
                 //check if the robot is C3G and translate
-                if (GetC3GRobotID(GetRobotName(fullFilePath)) != 0) { TranslateC3G(fullFilePath); RobotID = GetC3GRobotID(GetRobotName(fullFilePath)); }
+                if (GetC3GRobotID(GetRobotName(fullFilePath)) != 0)
+                { TranslateC3G(fullFilePath); RobotID = GetC3GRobotID(GetRobotName(fullFilePath)); } 
+                //check if the robot is C4G and translate
+                else if (GetC4GRobotID(GetRobotName(fullFilePath)) != 0) 
+                { TranslateC4G(fullFilePath); RobotID = GetC4GRobotID(GetRobotName(fullFilePath)); }
+                else 
+                { Debug.Message("VarReading", fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)) + " msg: translation not found"); return; }
+
                 if (File.Exists(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase)) && RobotID != 0)
                 {
                     DataTable buffer = new DataTable();
                     //Console.WriteLine("*Reading***********************************************************");
                     buffer = ReadPosVarFile(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase), RobotID);
                     //Console.WriteLine("*Pushing***********************************************************");
-                    BulkCopyToGadata(buffer, "L_robotpositions");
+
+                    BulkCopyToGadata("C4G", buffer, "L_robotpositions");
                     //Console.WriteLine("*Delete lsv***********************************************************");
                     File.Delete(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase));
                 }
-                else { Debug.Message("VarReading", fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)) + " msg: translation err"); }
+
             }
         }
         //check if tile is errorlog
@@ -496,7 +506,7 @@ class Program
                     }
                     //
                     //Console.WriteLine("robot: {9} File: '{0}'  Pos: '{1}' x: '{2}' y: '{3}' z: '{4}' a: '{5}' e: '{6}' r: '{7}' cnfg: '{8}'",
-                      //  Path.GetFileNameWithoutExtension(fullFilePath), posname, x, y, z, a, e, r, cnfg,GetRobotName(fullFilePath));
+                    //    Path.GetFileNameWithoutExtension(fullFilePath), posname, x, y, z, a, e, r, cnfg,GetRobotName(fullFilePath));
                     //add to buffer 
                     row = Buffer.NewRow();
                     row["controller_id"] = Robotid;
@@ -972,6 +982,7 @@ GO
         }
         static void TranslateC4G(String as_FullFilepath)
         {
+         try {
             //extract the C4G decomplir from the resource into the executionpath
             byte[] exeBytes = Properties.Resources.pdl2_v561;
             string exeToRun = new Uri(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase) + @"\c4gtr.exe").LocalPath;
@@ -981,12 +992,15 @@ GO
             startInfo.WorkingDirectory = as_FullFilepath.Replace(Path.GetFileName(as_FullFilepath), "").Trim();
             startInfo.CreateNoWindow = false;
             startInfo.UseShellExecute = false;
-            startInfo.FileName = exeToRun; //@"C:\temp\c4gtr.exe"; //
+            startInfo.FileName = exeToRun;
             startInfo.WindowStyle = ProcessWindowStyle.Hidden;
             startInfo.RedirectStandardOutput = true;
             startInfo.Arguments = @"/B /V " + Path.GetFileName(as_FullFilepath);
-            try { using (Process exeProcess = Process.Start(startInfo)) { exeProcess.WaitForExit(); } }
-            catch { Debug.Message("TranslationErr", "robotid: " + GetC3GRobotID(GetRobotName(as_FullFilepath)) + " For: " + GetRobotName(as_FullFilepath)); }
+            using (Process exeProcess = Process.Start(startInfo)) {exeProcess.WaitForExit(); }
+            }
+            catch (Exception ex) { Debug.Message("TranslationErr", "For: "  + GetRobotName(as_FullFilepath));
+            Console.WriteLine("C4G trans err exeption: {0}", ex.Message);
+            }
         }
         //*****************************************************************************************************************************************
         //SQL
@@ -1072,7 +1086,7 @@ GO
 
         }
         //Bulk Copy to Gadata
-        static void BulkCopyToGadata (DataTable adt_table, string as_destination)
+        static void BulkCopyToGadata (string as_schema, DataTable adt_table, string as_destination)
         {
             {
                 string connectionString = "user id=GADATA; password=GADATA987; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=30";
@@ -1081,14 +1095,14 @@ GO
                 {
                     connection.Open();
                     // Perform an initial count on the destination table.
-                    SqlCommand commandRowCount = new SqlCommand("SELECT COUNT(*) FROM [RobotGA].[" + as_destination + "];", connection);
+                    SqlCommand commandRowCount = new SqlCommand("SELECT COUNT(*) FROM ["+as_schema+"].[" + as_destination + "];", connection);
                     long countStart = System.Convert.ToInt32(commandRowCount.ExecuteScalar());
                     // Note that the column positions in the source DataTable  
                     // match the column positions in the destination table so  
                     // there is no need to map columns.  
                     using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
                     {
-                        bulkCopy.DestinationTableName = "[RobotGA].[" + as_destination + "]";
+                        bulkCopy.DestinationTableName = "["+as_schema+"].[" + as_destination + "]";
                         try
                         {
                             // Write from the source to the destination.
