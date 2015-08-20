@@ -132,14 +132,14 @@ class Program
                     {
                         try
                         {
-                            Console.Write("\r System ready | Filebuffer status: {0:D3} | Localbuffer:  {1:D3} ", Buffer.Count(), Cfilecount);
+                            Console.Write("\r System ready | Filebuffer Processing: | {1:D3} / {0:D3} |  ", Buffer.Count(), Cfilecount);
                             spin.Turn();
                             Cfilecount++;
                             if (IsFileReady(file) && Buffer.Contains(file)) { HandelVarfile(file); }
                             if (IsFileReady(file) && Buffer.Contains(file)) { HandelLogfile(file); }
                             else if (!File.Exists(file)) { Buffer.Delete(file); Debug.Message("FileNotExistWhileInBuffer", file.Substring(Math.Max(0, file.Length - 40))); }
                         }
-                        catch (Exception ex) { Debug.Message("Buffersweep", file.Substring(Math.Max(0, file.Length - 40)) + " msg: " + ex.Message); }
+                        catch (Exception ex) { Debug.Message("Buffersweep", file.Substring(Math.Max(0, file.Length - 60)) + " msg: " + ex.Message); }
                     }
                 }
             }
@@ -158,16 +158,18 @@ class Program
         //scan for var files
         private static void VarfileScan()
         {
+
             List<string> VARSearchpaths = new List<String>() {
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\", 
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};
-            List<string> VARExeptedfiles = new List<string>() { "LY413", "LY283", "LY55X", "LTOOL_", "TT_TOOL1.VAR", "TUVFRAME.VAR", "LArc", "LGripp", "LStatGun", "LGun","Lstud" };
+            List<string> VARExeptedfiles = new List<string>() { "LY413", "LY283", "LY55X", "LTOOL_", "TT_TOOL1.VAR", "TUVFRAME.VAR", "LArc", "LGripp", "LStatGun", "LGun", "Lstud" };
             List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
             List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VAR", VARExeptedfiles, VARExeptedFolders);
             foreach (string file in VARResultList) { Buffer.Record(file); }
+            Debug.Message("INFO", "Varfilescan DONE");
         }
 
         // Event handeler for priodic scan ecent 
@@ -218,6 +220,8 @@ class Program
         {
             if (fullFilePath.IndexOf("var", 0, StringComparison.CurrentCultureIgnoreCase) != -1)
             {
+                if (!fullFilePath.EndsWith("var",StringComparison.CurrentCultureIgnoreCase)) { Buffer.Delete(fullFilePath); return;  }
+
                 Buffer.Delete(fullFilePath);
                 Int32 C3GRobotID = 0;
                 Int32 C4GRobotID = 0;
@@ -227,10 +231,10 @@ class Program
                 //check if the robot is C4G and translate
                 else if (GetC4GRobotID(GetRobotName(fullFilePath)) != 0)
                 { TranslateC4G(fullFilePath); C4GRobotID = GetC4GRobotID(GetRobotName(fullFilePath)); }
-                else 
-                { Debug.Message("VarReading", fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)) + " msg: translation not found"); return; }
+                else
+                { Debug.Message("Robot not in DB: ", GetRobotName(fullFilePath) + "| ID returns 0"); return; }
 
-                if (File.Exists(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase)) && (C3GRobotID != 0 || C4GRobotID != 0))
+                if (File.Exists(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase)))
                 {
                     DataTable buffer = new DataTable();
                     if (C4GRobotID != 0)
@@ -244,6 +248,10 @@ class Program
                         BulkCopyToGadata("ROBOTGA", buffer, "L_robotpositions"); 
                     }
                     File.Delete(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase));
+                }
+                else 
+                {
+                    Debug.Message("TranslateERR: ", GetRobotName(fullFilePath) + " File: " + fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)));
                 }
 
             }
@@ -286,7 +294,7 @@ class Program
             else { return "Unknown"; }        
           }
     }
-        //Read the logfile
+        //Read the logfilemm
         private static DataTable ReadC3GErrlog(string fullFilePath)
         {
             try
@@ -414,7 +422,7 @@ class Program
         {
             string[] lines = System.IO.File.ReadAllLines(fullFilePath);
             //to extract date from file 
-            string datestring = lines[1].Substring((lines[1].IndexOf(".VAR", StringComparison.OrdinalIgnoreCase) + 4));
+            string datestring = lines[1].Substring((lines[1].IndexOf(".VAR", StringComparison.OrdinalIgnoreCase) + 4 + 2));
             // file reading
             int index = 0;
             int TFnum = 1;
