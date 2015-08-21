@@ -106,10 +106,8 @@ class Program
             }
             catch (Exception ex) { Debug.Message("Wachter", ex.Message); Debug.Restart(); }
             //*****************************************************************************************************************************************
-            Console.WriteLine("Aschyn call of varfile scan");
             Task.Run(() => VarfileScan());
             //*****************************************************************************************************************************************
-            Console.WriteLine("Aschyn call of Logfile scan");
             Task.Run(() => C3GLogFilescan());
             //*****************************************************************************************************************************************
             Timer TriggerTimer = new System.Timers.Timer(7 * 24 * 60 * 60 * 1000); //run every week 
@@ -149,16 +147,18 @@ class Program
         //scan for Log files
         private static void C3GLogFilescan()
         {
+            Debug.Message("INFO", "Logfilescan"); 
             List<string> LOGSearchpaths = new List<String>() { @"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" };
             List<string> LOGExeptedfiles = new List<string>() { "TOOL_01.LOG", "TOOL_02.LOG", "TOOL_03.LOG", "TOOL_04.LOG", "ERROR.LOG" };
             List<string> LOGExeptedFolders = new List<string>() { @"\Comau\3\" };
             List<string> LOGResultList = ReqSearchDir(LOGSearchpaths, "*.LOG", LOGExeptedfiles, LOGExeptedFolders);
             foreach (string file in LOGResultList) { Buffer.Record(file);}
+            Debug.Message("INFO", "Logfilescan DONE");
         }
         //scan for var files
         private static void VarfileScan()
         {
-
+            Debug.Message("INFO", "Varfilescan"); 
             List<string> VARSearchpaths = new List<String>() {
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\", 
@@ -175,7 +175,6 @@ class Program
         // Event handeler for priodic scan ecent 
         private static void OnTimedEvent(object source, ElapsedEventArgs e) 
         { 
-            Debug.Message("INFO","Varfilescan"); 
             Task.Run(() => VarfileScan()); 
         }    
         // Event handeler for robot puts file on server
@@ -220,7 +219,11 @@ class Program
         {
             if (fullFilePath.IndexOf("var", 0, StringComparison.CurrentCultureIgnoreCase) != -1)
             {
-                if (!fullFilePath.EndsWith("var",StringComparison.CurrentCultureIgnoreCase)) { Buffer.Delete(fullFilePath); return;  }
+                if (!fullFilePath.EndsWith("var",StringComparison.CurrentCultureIgnoreCase)) 
+                {
+                    Debug.Message("VarfileInvalid: ", GetRobotName(fullFilePath) + " File: " + fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)));
+                    Buffer.Delete(fullFilePath); return;  
+                }
 
                 Buffer.Delete(fullFilePath);
                 Int32 C3GRobotID = 0;
