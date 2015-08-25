@@ -209,6 +209,17 @@ class Program
                         Buffer.Rows.Add(row);
                     
                     }
+                    if (line.Contains("_sbcu_check(") && line.Contains("--"))
+                    {
+                        row = Buffer.NewRow();
+                        row["controller_name"] = GetRobotName(fullFilePath);
+                        row["Tool_file"] = Path.GetFileName(fullFilePath);
+                        row["Const"] = "SBCU comment out detected";
+                        row["Value"] = "OUT OF USE";
+                        row["Comment"] = line;
+                        Buffer.Rows.Add(row);
+                    }
+
                 }
                 return Buffer;
             }
