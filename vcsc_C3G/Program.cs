@@ -86,7 +86,7 @@ class Program
          //Main
         static void Main(string[] args)
         {
-            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 15W34D03";
+            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 15W35D01";
             Console.BufferHeight = 100;
             Debug.Init();
             Debug.Message("INFO", "System restarted");
@@ -108,7 +108,7 @@ class Program
             //*****************************************************************************************************************************************
             Task.Run(() => VarfileScan());
             //*****************************************************************************************************************************************
-            Task.Run(() => C3GLogFilescan());
+          //  Task.Run(() => C3GLogFilescan());
             //*****************************************************************************************************************************************
             Timer TriggerTimer = new System.Timers.Timer(7 * 24 * 60 * 60 * 1000); //run every week 
             TriggerTimer.Start();
@@ -1006,7 +1006,7 @@ GO
             startInfo.RedirectStandardOutput = true;
             startInfo.Arguments = @"/B " + as_FullFilepath;
             try { using (Process exeProcess = Process.Start(startInfo)){ exeProcess.WaitForExit(); }}
-            catch { Debug.Message("TranslationErr", "robotid: " + GetC3GRobotID(GetRobotName(as_FullFilepath)) + " For: " + GetRobotName(as_FullFilepath)); }
+            catch { Debug.Message("c3gTranslationErr", "robotid: " + GetC3GRobotID(GetRobotName(as_FullFilepath)) + " For: " + GetRobotName(as_FullFilepath)); }
         }
         static void TranslateC4G(String as_FullFilepath)
         {
@@ -1026,7 +1026,7 @@ GO
             startInfo.Arguments = @"/B /V " + Path.GetFileName(as_FullFilepath);
             using (Process exeProcess = Process.Start(startInfo)) {exeProcess.WaitForExit(); }
             }
-            catch (Exception ex) { Debug.Message("TranslationErr", "For: "  + GetRobotName(as_FullFilepath) +"  M: " + ex.Message);
+            catch (Exception ex) { Debug.Message("c4gTranslationErr", "For: "  + GetRobotName(as_FullFilepath) +"  M: " + ex.Message);
             }
         }
         //*****************************************************************************************************************************************
