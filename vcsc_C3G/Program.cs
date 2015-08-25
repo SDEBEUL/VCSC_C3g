@@ -86,44 +86,16 @@ class Program
          //Main
         static void Main(string[] args)
         {
-            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 15W15D04";
+            Console.Title = "VOLVO Comau C3G Reads Const in Ltool files | Build by SDEBEUL version: 0.01";
             Console.BufferHeight = 100;
             Debug.Init();
             Debug.Message("INFO", "System restarted");
-
-            /*
-            //*****************************************************************************************************************************************
-            //build file sytem watch 
-            try { 
-            FileSystemWatcher watcher = new FileSystemWatcher();
-            watcher.Path = @"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\";
-            watcher.InternalBufferSize = (watcher.InternalBufferSize * 2); //2 times default buffer size 
-            watcher.Error += new ErrorEventHandler(OnError);
-            watcher.Filter = "*.LOG";
-            watcher.IncludeSubdirectories = true;
-            watcher.Error += new ErrorEventHandler(OnError);
-            watcher.Created += new FileSystemEventHandler(OnCreate);
-            watcher.EnableRaisingEvents = true;
-            }
-            catch (Exception ex) { Debug.Message("Wachter", ex.Message); Debug.Restart(); }
-            //*****************************************************************************************************************************************
-            Console.WriteLine("Aschyn call of varfile scan");
-            Task.Run(() => VarfileScan());
-            //*****************************************************************************************************************************************
-            Console.WriteLine("Aschyn call of Logfile scan");
-            Task.Run(() => C3GLogFilescan());
-            //*****************************************************************************************************************************************
-            Timer TriggerTimer = new System.Timers.Timer(7 * 24 * 60 * 60 * 1000); //run every week 
-            TriggerTimer.Start();
-            TriggerTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
-             */
-            //*****************************************************************************************************************************************
-            //*****************************************************************************************************************************************
-            Console.WriteLine(" call of VER FILES scan");
-            VErfileScan();
+            Console.WriteLine(" call of Ltool FILES scan Take smoke break can take up to 10 min");
+            ToolfileScan();
+            Debug.Message("INFO", "Found " + Buffer.Count());
             //*****************************************************************************************************************************************
             //big buffer table 
-            DataTable BigBuffer = MakeVerFileBufferTable();
+            DataTable BigBuffer = MakeConstBufferTable();
             BigBuffer.AcceptChanges();
             
             ConsoleSpiner spin = new ConsoleSpiner();
@@ -137,7 +109,7 @@ class Program
                 {
                     Console.Write("\r System ready (buffer empty)   Rows in table: {0}                        ", BigBuffer.Rows.Count); 
                     spin.Turn();
-                    BigBuffer.ExportToExcel(AppDomain.CurrentDomain.BaseDirectory + "VerFile.xlsx");
+                    BigBuffer.ExportToExcel(AppDomain.CurrentDomain.BaseDirectory + "ToolFile.xlsx");
                     Console.WriteLine("Done....");
                     Console.ReadKey();
 
@@ -154,23 +126,23 @@ class Program
                             spin.Turn();
                             Cfilecount++;
                             if (IsFileReady(file) && Buffer.Contains(file)) 
-                            { 
-                                if (IsC3GVer(file)) 
+                            {
+                                TranslateC3G(file);
+                                string currentpdl = Regex.Replace(file, ".cod", ".pdl", RegexOptions.IgnoreCase);
+                                if (IsFileReady(currentpdl)) 
                                 {
-                          
-                                    foreach (DataRow dr in ReadC3GVErFile(file).Rows) 
+
+                                    foreach (DataRow dr in ReadC3GGunConstants(currentpdl).Rows) 
                                             {
                                                 BigBuffer.Rows.Add(dr.ItemArray);
                                             }
-                                    ReadC3GVErFile(file).WriteToCsvFile(@"c:\temp\test.csv");
                                     Buffer.Delete(file);
-
+                                    File.Delete(currentpdl);
+                                    
                                 } 
                                 else 
                                 { Buffer.Delete(file); } 
                             }
-                            //if (IsFileReady(file) && Buffer.Contains(file)) { HandelVarfile(file); }
-                            //if (IsFileReady(file) && Buffer.Contains(file)) { HandelLogfile(file); }
                             else if (!File.Exists(file)) { Buffer.Delete(file); Debug.Message("FileNotExistWhileInBuffer", file.Substring(Math.Max(0, file.Length - 40))); }
                         }
                         catch (Exception ex) { Debug.Message("Buffersweep", file.Substring(Math.Max(0, file.Length - 40)) + " msg: " + ex.Message); }
@@ -180,471 +152,60 @@ class Program
             catch (Exception ex) {Debug.Message("GeneralCatch", " msg: " + ex.Message); } 
           }
         }
-        //scan for Log files
-        private static void C3GLogFilescan()
-        {
-            List<string> LOGSearchpaths = new List<String>() { @"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" };
-            List<string> LOGExeptedfiles = new List<string>() { "TOOL_01.LOG", "TOOL_02.LOG", "TOOL_03.LOG", "TOOL_04.LOG", "ERROR.LOG" };
-            List<string> LOGExeptedFolders = new List<string>() { @"\Comau\3\" };
-            List<string> LOGResultList = ReqSearchDir(LOGSearchpaths, "*.LOG", LOGExeptedfiles, LOGExeptedFolders);
-            foreach (string file in LOGResultList) { Buffer.Record(file);}
-        }
+
         //scan for var files
-        private static void VarfileScan()
-        {
-            List<string> VARSearchpaths = new List<String>() { 
-                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\", 
-                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\",
-                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
-                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};
-            List<string> VARExeptedfiles = new List<string>() { "LY413.VAR", "LY283.VAR", "LY55X.VAR", "LTOOL_", "TT_TOOL1.VAR", "TUVFRAME.VAR" };
-            List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
-            List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VAR", VARExeptedfiles, VARExeptedFolders);
-            foreach (string file in VARResultList) { Buffer.Record(file); }
-        }
+
         //scan for var files
-        private static void VErfileScan()
+        private static void ToolfileScan()
         {
             List<string> VARSearchpaths = new List<String>() {@"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\", 
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};
-            List<string> VARExeptedfiles = new List<string>() { ".VER" };
+            List<string> VARExeptedfiles = new List<string>() { "LTOOL_1","LTOOL_2","LTOOL_19","LTOOL_20" };
             List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
-            List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VER", VARExeptedfiles, VARExeptedFolders);
+            List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.cod", VARExeptedfiles, VARExeptedFolders);
             foreach (string file in VARResultList) { Buffer.Record(file); }
         }
-        // Event handeler for priodic scan ecent 
-        private static void OnTimedEvent(object source, ElapsedEventArgs e) 
-        { 
-            Debug.Message("INFO","Varfilescan"); 
-            Task.Run(() => VarfileScan()); 
-        }    
-        // Event handeler for robot puts file on server
-        private static void OnCreate(object source, FileSystemEventArgs e){Buffer.Record(e.FullPath); }
-        // Event handeler for error event in wacther (auto restart)
-        private static void OnError(object source, ErrorEventArgs e) { Debug.Message("FileWachter", e.GetException().Message); Debug.Restart(); }
+ 
         //*****************************************************************************************************************************************
         //File reading
         //*****************************************************************************************************************************************  
-        //handle log file
-        public static void HandelLogfile(string fullFilepath)
-        {
-                DataTable buffertable = new DataTable();
-                switch (IsC3GLog(fullFilepath))
-                {
-                    case "Errorlog":
-                        buffertable = ReadC3GErrlog(fullFilepath);
-                        buffertable = CheckDataConsistensyC3G(buffertable);
-                        BulkCopyToGadata(buffertable, "rt_alarm");
-                        SafeDelete(fullFilepath);
-                        Buffer.Delete(fullFilepath);
-                        RemoveEmptyFolders(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
-                        break;
-                    case "Toollog":
-                        buffertable = ReadC3GToollog(fullFilepath);
-                        BulkCopyToGadata(buffertable, "rt_toollog");
-                        SafeDelete(fullFilepath);
-                        Buffer.Delete(fullFilepath);
-                        RemoveEmptyFolders(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
-                        break;
-                    default:
-                        Debug.Message("Unknow filetype", fullFilepath.Substring(Math.Max(0, fullFilepath.Length - 40)));
-                        File.Delete(fullFilepath);
-                        Buffer.Delete(fullFilepath);
-                        break;
-                }
-                buffertable.Dispose();
-
-        }
-        //handle Var file
-        public static void HandelVarfile(string fullFilePath)
-        {
-            if (fullFilePath.IndexOf("var", 0, StringComparison.CurrentCultureIgnoreCase) != -1)
-            {
-                Buffer.Delete(fullFilePath);
-                Int32 RobotID = 0;
-                //check if the robot is C3G and translate
-                if (GetC3GRobotID(GetRobotName(fullFilePath)) != 0) { TranslateC3G(fullFilePath); RobotID = GetC3GRobotID(GetRobotName(fullFilePath)); }
-                if (File.Exists(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase)) && RobotID != 0)
-                {
-                    DataTable buffer = new DataTable();
-                    //Console.WriteLine("*Reading***********************************************************");
-                    buffer = ReadPosVarFile(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase), RobotID);
-                    //Console.WriteLine("*Pushing***********************************************************");
-                    BulkCopyToGadata(buffer, "L_robotpositions");
-                    //Console.WriteLine("*Delete lsv***********************************************************");
-                    File.Delete(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase));
-                }
-                else { Debug.Message("VarReading", fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)) + " msg: translation err"); }
-            }
-        }
-        //check if tile is errorlog
-        public static string IsC3GLog(string fullFilePath)
-        {
-        Stream stream = File.Open(fullFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using (var reader = new StreamReader(stream))
-        {
-            var hasComau = false;
-            var hasCorrectType = false;
-            var hasDmeas = false;
-            var hasDsetup = false;
-
-            while (!reader.EndOfStream)
-            {
-                var line = reader.ReadLine();
-                if (!hasComau)
-                {
-                    if (line.StartsWith("*  C O M A U  :  Robotics              *"))  { hasComau = true; }
-                }
-                if (!hasCorrectType)
-                {
-                    if (line.StartsWith("* ERROR FORMAT RELEASE     : 1.0       *")) { hasCorrectType = true; }
-                }
-                if (!hasDmeas)
-                {
-                    if (line.Contains("dmeas=")) { hasDmeas = true; }
-                }
-                if (!hasDsetup)
-                {
-                    if (line.Contains("dsetup=")) { hasDsetup = true; }
-                }
-                //saves me from reading whole file
-                if ((hasCorrectType && hasComau) | (hasDmeas && hasDsetup)){break;}
-            }
-            if (hasCorrectType && hasCorrectType) { return "Errorlog"; }
-            else if (hasDmeas && hasDsetup) {return "Toollog"; }
-            else { return "Unknown"; }        
-          }
-    }
-        //chekc if file is C3G ver file 
-            //check if tile is errorlog
-        public static bool IsC3GVer(string fullFilePath)
-        {
-        Stream stream = File.Open(fullFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using (var reader = new StreamReader(stream))
-        {
-            var hasRamdisk = false;
-            var hasSoftwarever = false;
-
-
-            while (!reader.EndOfStream)
-            {
-                var line = reader.ReadLine();
-                if (!hasRamdisk)
-                {
-                    if (line.Contains("Ram Disk volume [RAMDISK]"))  { hasRamdisk = true; }
-                }
-                if (!hasSoftwarever)
-                {
-                    if (line.Contains("SOFTWARE VERSIONS list file for robot:")) { hasSoftwarever = true; }
-                }
-
-                //saves me from reading whole file
-                if (hasRamdisk && hasSoftwarever){break;}
-            }
-            if (hasRamdisk && hasSoftwarever)  {return true; }
-            else { return false; }        
-        }
-        }
         //Read the logfile
-        private static DataTable ReadC3GErrlog(string fullFilePath)
+        private static DataTable ReadC3GGunConstants(string fullFilePath)
         {
             try
             {
                 string[] lines = System.IO.File.ReadAllLines(fullFilePath);
-                // file reading
-                int index = 0;
-                string sPattern = "<...>";
-                string dateString = "";
-                string FullErrorCodeString = "";
-                string LogtextString = "";
-                Int32 Logcode = 0;
-                Int32 LogSeverity = 0;
-                //get robot id 
-                Int32 RobotId = GetC3GRobotID(GetRobotName(fullFilePath));
                 // buffer table
-                DataTable Buffer = MakeErrorlogBufferTable();
+                DataTable Buffer = MakeConstBufferTable();
                 DataRow row = Buffer.NewRow();
                 Buffer.AcceptChanges();
                 foreach (string line in lines)
                 {
-                    //finds begin of datetime line
-                    if (System.Text.RegularExpressions.Regex.IsMatch(line, sPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    if (line.Contains("CONST") && line.Contains("="))
                     {
-                        //extract datetime format from current line
-                        dateString = Regex.Replace(line, sPattern, "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                        // read errorlog from next line AND Split logcode and logtext  // (28694-10 ):( Safety gate or Emergency STOP)   
-                        FullErrorCodeString = lines[index + 1].Split(':')[0];
-                        //LogtextString = lines[index + 1].Split(':')[1];
-                        LogtextString = lines[index + 1].Substring(FullErrorCodeString.Length + 1);
-                        // Split logcode // (28694)-(10 ) AND Convert to int 
-                        Logcode = Convert.ToInt32(FullErrorCodeString.Split('-')[0]);
-                        LogSeverity = Convert.ToInt32(FullErrorCodeString.Split('-')[1]);
-                        //Console.WriteLine("Date: '{0}'  Err: '{1}' serv: '{2}' Text: '{3}", ConvertComauDate(dateString.Trim()).ToString(), Logcode.ToString(), LogSeverity.ToString(), LogtextString.Trim());
-                        row = Buffer.NewRow();
-                        row["controller_id"] = RobotId;
-                        row["error_timestamp"] = ConvertComauDate(dateString.Trim());
-                        row["error_number"] = Logcode;
-                        row["error_severity"] = LogSeverity;
-                        row["error_text"] = LogtextString.Trim();
-                        row["error_text_id"] = DBNull.Value;
-                        Buffer.Rows.Add(row);
-                    }
-                    index++;
-                }
-                return Buffer;
-            }
-            catch (Exception e)
-            {
-                Debug.Message("LogReading", fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)) + " Msg: " + e.Message);
-                DataTable Buffer = MakeErrorlogBufferTable();
-                return Buffer;
-            }
-        }
-        private static DataTable ReadC3GToollog(string fullFilePath)
-        {
-            string[] lines = System.IO.File.ReadAllLines(fullFilePath);
-            // file reading
-            int index = 0;
-            string sPattern = ".-...-.....:..:..";
-            //get robot id 
-            Int32 RobotId = GetC3GRobotID(GetRobotName(fullFilePath));
-            // buffer table
-            DataTable Buffer = MakeToollogBufferTable();
-            DataRow row = Buffer.NewRow();
-            Buffer.AcceptChanges();
-
-            foreach (string line in lines)
-            {
-                //finds begin of datetime line and next line has tcp
-                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase) && lines[index + 1].Contains("T <"))
-                {
-                    //extract datetime format from current line
-                   string dateString = line.Substring(0, line.IndexOf("dmeas"));
-                    //extract dmeas and dsetup from current line
-                   //if (line.ToString().Contains("Attr")) //selection for type of logfile (new version with attrbute)
-                   //{
-                   float Dmeas = float.Parse(line.ToString().Split('=')[1].Replace("dsetup", "").Trim(), CultureInfo.InvariantCulture);
-                   float Dsetup = float.Parse(line.ToString().Split('=')[2].Replace("Attr", "").Trim(), CultureInfo.InvariantCulture);
-                   Boolean Longcheck = false;
-                   if (line.Contains("Attr") && line.ToString().Split('=')[3].Contains('L')) { Longcheck = true; }
-                   Boolean Update = false;
-                   if (line.Contains("Attr") && line.ToString().Split('=')[3].Contains('U')) { Update = true; }
-                   //get toolvalues from next logline 
-                       // T < 338.492, 262.238, 1060.765, -142.690, 155.900, 34.730,>
-                       string TcpString = lines[index + 1].Replace("T <", "").Replace(",>", "").Replace("\0", "").Trim();
-                       // 338.492, 262.238, 1060.765, -142.690, 155.900, 34.730
-                       float x = float.Parse(TcpString.Split(',')[0], CultureInfo.InstalledUICulture);
-                       float y = float.Parse(TcpString.Split(',')[1], CultureInfo.InstalledUICulture);
-                       float z = float.Parse(TcpString.Split(',')[2], CultureInfo.InstalledUICulture);
-                       float a = float.Parse(TcpString.Split(',')[3], CultureInfo.InstalledUICulture);
-                       float e = float.Parse(TcpString.Split(',')[4], CultureInfo.InstalledUICulture);
-                       float r = float.Parse(TcpString.Split(',')[5], CultureInfo.InstalledUICulture);
-                       //Console.WriteLine("x: '{0}'  y: '{1}' z: '{2}' a: '{3}'  e: '{4}' r: '{5}'", x, y, z, a, e, r);
-                  //add to buffer 
-                   row = Buffer.NewRow();
-                   if (line.Contains("Attr"))
-                   {
-                     row["Longcheck"] = Longcheck;
-                     row["TcpUpdate"] = Update;
-                   }
-                   else
-                   {
-                     row["Longcheck"] = DBNull.Value;
-                     row["TcpUpdate"] = DBNull.Value;
-                   }
-                   row["controller_id"] = RobotId;
-                   row["tool_timestamp"] = ConvertComauDate(dateString);
-                   row["tool_id"] = GetToolId(fullFilePath);
-                   row["Dmeas"] = Dmeas;
-                   row["Dsetup"] = Dsetup;
-                   row["ToolX"] = x;
-                   row["ToolY"] = y;
-                   row["ToolZ"] = z;
-                   row["ToolA"] = a;
-                   row["ToolE"] = e;
-                   row["ToolR"] = r;
-                   Buffer.Rows.Add(row); 
-                }
-                index++;
-            }
-            return Buffer;
-        }
-        private static DataTable ReadPosVarFile(string fullFilePath, Int32 Robotid)
-        {
-            string[] lines = System.IO.File.ReadAllLines(fullFilePath);
-            //to extract date from file 
-            string datestring = lines[1].Substring((lines[1].IndexOf(".VAR", StringComparison.OrdinalIgnoreCase) + 4));
-            // file reading
-            int index = 0;
-            int TFnum = 1;
-            Int32 numtools = 0;
-            string sPatternPOS = "POS  Priv";
-            string sPatternXTND1 = "XTND Arm: 1 Ax: 1 Priv";
-            string sPatternXTND2 = "XTND Arm: 1 Ax: 2 Priv";
-            string sPatternTool = "vp_tools";  
-            string sPatternFrame = "vp_frames"; 
-            // buffer table
-            DataTable Buffer = MakePosBufferTable();
-            DataRow row = Buffer.NewRow();
-            Buffer.AcceptChanges();
-            //
-            foreach (string line in lines)
-            {
-              //  Console.WriteLine(line);
-                Boolean bPOSmode = false;
-                Boolean bXTND1mode = false;
-                Boolean bXTND2mode = false;
-                Boolean Toolmode = false;
-                Boolean Framemode = false;
-                string posname = "";
-                string cnfg = "";
-                float x = 0.0f;
-                float y = 0.0f;
-                float z = 0.0f;
-                float a = 0.0f;
-                float e = 0.0f;
-                float r = 0.0f;
-                float ax7 = 0.0f;
-                float ax8 = 0.0f;
-                //finds position lines
-                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternPOS, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) {bPOSmode = true;}  
-                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternXTND1, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) {bXTND1mode = true;}
-                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternXTND2, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) { bXTND2mode = true; }
-                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternTool, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) { Toolmode = true;
-                 numtools = Int32.Parse(line.Substring((line.IndexOf("APOS[") + 5), 2).Trim());
-                }
-                if (System.Text.RegularExpressions.Regex.IsMatch(line, sPatternFrame, System.Text.RegularExpressions.RegexOptions.IgnoreCase)) { Framemode = true;
-                 numtools = Int32.Parse(line.Substring((line.IndexOf("APOS[") + 5), 2).Trim());
-                }
-
-                if (bPOSmode) { posname = line.Substring(0, line.IndexOf(sPatternPOS)).Trim(); };
-                if (bXTND1mode) { posname = line.Substring(0, line.IndexOf(sPatternXTND1)).Trim(); };
-                if (bXTND2mode) { posname = line.Substring(0, line.IndexOf(sPatternXTND2)).Trim(); };
-            NextTF:
-                if (Toolmode && TFnum < numtools)
-                {
-                    posname = "Tool_" + TFnum; 
-                    TFnum++; 
-                    index++;
-                    
-                }
-                else {Toolmode = false;}
-
-            if (Framemode && TFnum < numtools)
-            {
-                posname = "Frame_" + TFnum;
-                TFnum++;
-                index++;
-
-            }
-            else { Framemode = false; }
-
-
-
-            if (bPOSmode | bXTND1mode | bXTND2mode | Toolmode | Framemode)
-                {
-                    //get position from next line  Line ex:  X:4606.30 Y:-366.59 Z:1373.78 A: -15.32 E:  37.21 R:-154.37
-                    if (!lines[index + 1].Contains("*******")) //handels uninit positions
-                    {
-                       // string currentline1 = line;
-                       // string currentline = lines[index + 1];
-                       // Console.WriteLine(currentline);
-                        x = float.Parse(lines[index + 1].Split(':')[1].TrimEnd(new char[] { 'Y' }).Trim(), CultureInfo.InstalledUICulture);
-                        y = float.Parse(lines[index + 1].Split(':')[2].TrimEnd(new char[] { 'Z' }).Trim(), CultureInfo.InstalledUICulture);
-                        z = float.Parse(lines[index + 1].Split(':')[3].TrimEnd(new char[] { 'A' }).Trim(), CultureInfo.InstalledUICulture);
-                        a = float.Parse(lines[index + 1].Split(':')[4].TrimEnd(new char[] { 'E' }).Trim(), CultureInfo.InstalledUICulture);
-                        e = float.Parse(lines[index + 1].Split(':')[5].TrimEnd(new char[] { 'R' }).Trim(), CultureInfo.InstalledUICulture);
-                        if (bPOSmode) {r = float.Parse(lines[index + 1].Split(':')[6].Trim(), CultureInfo.InstalledUICulture);}
-                        if (bXTND1mode)
+                        String Const = ExtractString(line,"CONST","=");
+                        String Comment = "NA";
+                        String Value = "";
+                        if (line.Contains("--"))
                         {
-                            r = float.Parse(lines[index + 1].Split(':')[6].TrimEnd(new char[] { '1' }).Trim(), CultureInfo.InstalledUICulture);
-                            ax7 = float.Parse(lines[index + 1].Split(':')[7].Trim(), CultureInfo.InstalledUICulture);
+                            Value = ExtractString(line, "=", "--");
+                            Comment = line.Substring((line.IndexOf("--") + 2)).Trim();
                         }
-                        if (bXTND2mode)
+                        else
                         {
-                            r = float.Parse(lines[index + 1].Split(':')[6].TrimEnd(new char[] { '1' }).Trim(), CultureInfo.InstalledUICulture);
-                            ax7 = float.Parse(lines[index + 1].Split(':')[7].TrimEnd(new char[] { '2' }).Trim(), CultureInfo.InstalledUICulture);
-                            ax8 = float.Parse(lines[index + 1].Split(':')[8].Trim(), CultureInfo.InstalledUICulture);
+                            Value = line.Substring((line.IndexOf("=") + 1)).Trim();
                         }
-                        //get cnfg flags from next line Line ex: CNFG: ''
-                        cnfg = lines[index + 2].Replace("CNFG:", "").Replace("'", "").Trim();
-                    }
-                    //
-                    //Console.WriteLine("robot: {9} File: '{0}'  Pos: '{1}' x: '{2}' y: '{3}' z: '{4}' a: '{5}' e: '{6}' r: '{7}' cnfg: '{8}'",
-                      //  Path.GetFileNameWithoutExtension(fullFilePath), posname, x, y, z, a, e, r, cnfg,GetRobotName(fullFilePath));
-                    //add to buffer 
-                    row = Buffer.NewRow();
-                    row["controller_id"] = Robotid;
-                    row["_timestamp"] = DBNull.Value;
-                    row["file_timestamp"] = ConvertComauDate(datestring);
-                    row["Owner"] = Path.GetFileNameWithoutExtension(fullFilePath);
-                    row["Pos"] = posname;
-                    row["X"] = x;
-                    row["Y"] = y;
-                    row["Z"] = z;
-                    row["A"] = a;
-                    row["E"] = e;
-                    row["R"] = r;
-                    if (bXTND1mode | bXTND2mode) { row["ax7"] = ax7; } else { row["ax7"] = DBNull.Value; }
-                    if (bXTND2mode) { row["ax8"] = ax8; } else { row["ax8"] = DBNull.Value; }
-                    row["Cnfg"] =cnfg;
-                    Buffer.Rows.Add(row);
 
-                    if (Toolmode | Framemode) { index = index + 2; goto NextTF; }
-                }
-                index++;
-            }
-            return Buffer;
-        }
-        private static DataTable ReadC3GVErFile(string fullFilePath)
-        {
-            try
-            {
-                /*
-                Module: DGUN     Version: 2.20  Size:    4264 bytes  Date: 29-NOV-14 17:45:20       <== default 
-                Module: DXGUN    not present on this controller                                     <== not present so must exclude
-                Module: RSSSSSRR Version:  ---  Size:    1365 bytes  Date: 29-NOV-14 17:51:46       <== present bu no tracker . (return ver 0) 
-                Application: A_SW1B Version: 5.31v                      <== default 
-                Application:   A_GL not present on this controller      <== not present 
-                 * */
-                string[] lines = System.IO.File.ReadAllLines(fullFilePath);
-                // buffer table
-                DataTable Buffer = MakeVerFileBufferTable();
-                DataRow row = Buffer.NewRow();
-                Buffer.AcceptChanges();
-                foreach (string line in lines)
-                {
-                     // HD modules 
-                    //finds begin of module line And does not contain not present
-                    if (line.Contains("Module:") && !line.Contains("not present "))
-                    {
-                        String Module = ExtractString(line,"Module:","Version:");
-                        String Version = ExtractString(line, "Version:", "Size:");
-                        String Size = ExtractString(line, "Size:", "bytes");
-                        String Bytes = ExtractString(line, "bytes", "Date:");
-                        String Date = line.Substring((line.IndexOf("Date:")+5),19 ).Trim();
-                        //Console.WriteLine("Module: {0} Version:  {1} Size: {2} bytes {3} Date: {4}", Module, Version, Size, Bytes, Date);
+                        //Console.WriteLine("Const: {0} |Value:  {1} |Comment: {2}", Const, Value,Comment);
                         row = Buffer.NewRow();
                         row["controller_name"] = GetRobotName(fullFilePath);
-                        row["module"] = Module;
-                        row["version"] = Version;
-                        Buffer.Rows.Add(row);
-                    
-                    }
-                    // appl soft 
-                    //finds begin of module line And does not contain not present
-                    if (line.Contains("Application:") && !line.Contains("not present "))
-                    {
-                        String Module = ExtractString(line, "Application:", "Version:");
-                        String Version = ExtractString(line, "Version:", "v"); //possible that the V char does not live in al differnt appl soft 
-                        //Console.WriteLine("Module: {0} Version:  {1} Size: {2} bytes {3} Date: {4}", Module, Version, Size, Bytes, Date);
-                        row = Buffer.NewRow();
-                        row["controller_name"] = GetRobotName(fullFilePath);
-                        row["module"] = Module;
-                        row["version"] = Version;
+                        row["Tool_file"] = Path.GetFileName(fullFilePath);
+                        row["Const"] = Const;
+                        row["Value"] = Value;
+                        row["Comment"] = Comment;
                         Buffer.Rows.Add(row);
                     
                     }
@@ -653,8 +214,8 @@ class Program
             }
             catch (Exception e)
             {
-                Debug.Message("VerReading", fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)) + " Msg: " + e.Message);
-                DataTable Buffer = MakeErrorlogBufferTable();
+                Debug.Message("constReading", fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)) + " Msg: " + e.Message);
+                DataTable Buffer = MakeConstBufferTable();
                 return Buffer;
             }
         }    
@@ -666,387 +227,34 @@ class Program
             return s.Substring(startIndex, endIndex - startIndex).Trim();
         }
      //Make datatable templates
-        private static DataTable MakeErrorlogBufferTable()
+        private static DataTable MakeConstBufferTable()
         {
-            DataTable Buffer = new DataTable("Buffer");
-
-            DataColumn ID = new DataColumn();
-            ID.DataType = System.Type.GetType("System.Int32");
-            ID.ColumnName = "ID";
-            ID.AutoIncrement = true;
-            Buffer.Columns.Add(ID);
-
-            DataColumn controller_id = new DataColumn();
-            controller_id.DataType = System.Type.GetType("System.Int32");
-            controller_id.ColumnName = "controller_id";
-            Buffer.Columns.Add(controller_id);
-
-            DataColumn error_timestamp = new DataColumn();
-            error_timestamp.DataType = System.Type.GetType("System.DateTime");
-            error_timestamp.ColumnName = "error_timestamp";
-            Buffer.Columns.Add(error_timestamp);
-
-            DataColumn error_number = new DataColumn();
-            error_number.DataType = System.Type.GetType("System.Int32");
-            error_number.ColumnName = "error_number";
-            Buffer.Columns.Add(error_number);
-
-            DataColumn error_severity = new DataColumn();
-            error_severity.DataType = System.Type.GetType("System.Int32");
-            error_severity.ColumnName = "error_severity";
-            Buffer.Columns.Add(error_severity);
-
-            DataColumn error_text_id = new DataColumn();
-            error_text_id.DataType = System.Type.GetType("System.Int32");
-            error_text_id.ColumnName = "error_text_id";
-            Buffer.Columns.Add(error_text_id);
-            
-            DataColumn error_text = new DataColumn();
-            error_text.DataType = System.Type.GetType("System.String");
-            error_text.ColumnName = "error_text";
-            Buffer.Columns.Add(error_text);
-            DataColumn[] keys = new DataColumn[1];
-            keys[0] = ID;
-            Buffer.PrimaryKey = keys; 
-            return Buffer;
-
-//SQL target table
-/*
- USE [GADATA]
-GO
-***** Object:  Table [RobotGA].[rt_alarm]    Script Date: 2/10/2014 6:19:35 *****
-SET ANSI_NULLS ON
-GO
-
-SET QUOTED_IDENTIFIER ON
-GO
-
-SET ANSI_PADDING ON
-GO
-
-CREATE TABLE [RobotGA].[rt_alarm](
-	[id] [int] IDENTITY(1,1) NOT NULL,
-	[controller_id] [int] NULL,
-	[error_timestamp] [datetime] NULL,
-	[error_number] [int] NULL,
-	[error_severity] [int] NULL,
-	[error_text] [varchar](256) NULL,
-	[RobotName] [varchar](20) NULL,
- CONSTRAINT [PK_rt_alarm] PRIMARY KEY CLUSTERED 
-(
-	[id] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-) ON [PRIMARY]
-
-GO
-
-SET ANSI_PADDING OFF
-GO
-
-
-            use GADATA
-
-CREATE UNIQUE NONCLUSTERED INDEX [IndexTableUniqueRows] ON gadata.robotga.rt_alarm
-(
-       [controller_id]
-      ,[error_timestamp]
-      ,[error_number]
-  ASC
-
-)WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = ON, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
- 
- * */
-        }
-        private static DataTable MakeToollogBufferTable()
-        {
-            DataTable Buffer = new DataTable("Buffer");
-
-            DataColumn ID = new DataColumn();
-            ID.DataType = System.Type.GetType("System.Int32");
-            ID.ColumnName = "ID";
-            ID.AutoIncrement = true;
-            Buffer.Columns.Add(ID);
-
-            DataColumn error_timestamp = new DataColumn();
-            error_timestamp.DataType = System.Type.GetType("System.DateTime");
-            error_timestamp.ColumnName = "tool_timestamp";
-            Buffer.Columns.Add(error_timestamp);
-
-            DataColumn tool_id = new DataColumn();
-            tool_id.DataType = System.Type.GetType("System.Int32");
-            tool_id.ColumnName = "tool_id";
-            Buffer.Columns.Add(tool_id);
-
-            DataColumn Dmeas = new DataColumn();
-            Dmeas.DataType = System.Type.GetType("System.Decimal");
-            Dmeas.ColumnName = "Dmeas";
-            Buffer.Columns.Add(Dmeas);
-
-            DataColumn Dsetup = new DataColumn();
-            Dsetup.DataType = System.Type.GetType("System.Decimal");
-            Dsetup.ColumnName = "Dsetup";
-            Buffer.Columns.Add(Dsetup);
-
-            DataColumn ToolX = new DataColumn();
-            ToolX.DataType = System.Type.GetType("System.Decimal");
-            ToolX.ColumnName = "ToolX";
-            Buffer.Columns.Add(ToolX);
-
-            DataColumn ToolY = new DataColumn();
-            ToolY.DataType = System.Type.GetType("System.Decimal");
-            ToolY.ColumnName = "ToolY";
-            Buffer.Columns.Add(ToolY);
-
-            DataColumn ToolZ = new DataColumn();
-            ToolZ.DataType = System.Type.GetType("System.Decimal");
-            ToolZ.ColumnName = "ToolZ";
-            Buffer.Columns.Add(ToolZ);
-
-            DataColumn ToolA = new DataColumn();
-            ToolA.DataType = System.Type.GetType("System.Decimal");
-            ToolA.ColumnName = "ToolA";
-            Buffer.Columns.Add(ToolA);
-
-            DataColumn ToolE = new DataColumn();
-            ToolE.DataType = System.Type.GetType("System.Decimal");
-            ToolE.ColumnName = "ToolE";
-            Buffer.Columns.Add(ToolE);
-
-            DataColumn ToolR = new DataColumn();
-            ToolR.DataType = System.Type.GetType("System.Decimal");
-            ToolR.ColumnName = "ToolR";
-            Buffer.Columns.Add(ToolR);
-
-            DataColumn controller_id = new DataColumn();
-            controller_id.DataType = System.Type.GetType("System.Int32");
-            controller_id.ColumnName = "controller_id";
-            Buffer.Columns.Add(controller_id);
-
-            DataColumn Longcheck = new DataColumn();
-            Longcheck.DataType = System.Type.GetType("System.Boolean");
-            Longcheck.ColumnName = "Longcheck";
-            Buffer.Columns.Add(Longcheck);
-
-            DataColumn TcpUpdate = new DataColumn();
-            TcpUpdate.DataType = System.Type.GetType("System.Boolean");
-            TcpUpdate.ColumnName = "TcpUpdate";
-            Buffer.Columns.Add(TcpUpdate);
-
-            DataColumn[] keys = new DataColumn[1];
-            keys[0] = ID;
-            Buffer.PrimaryKey = keys;
- 
-            return Buffer;
-
-//SQL target table script 
-            /*
-            USE [GADATA]
-           GO
-           ****** Object:  Table [RobotGA].[rt_toollog]    Script Date: 2/10/2014 6:17:40 *****
-           SET ANSI_NULLS ON
-           GO
-
-           SET QUOTED_IDENTIFIER ON
-           GO
-
-           SET ANSI_PADDING ON
-           GO
-
-           CREATE TABLE [RobotGA].[rt_toollog](
-               [ID] [int] IDENTITY(1,1) NOT NULL,
-               [tool_timestamp] [datetime] NULL,
-               [controller_id] [tinyint] NULL,
-               [tool_id] [tinyint] NULL,
-               [Dmeas] [real] NULL,
-               [Dsetup] [real] NULL,
-               [ToolX] [real] NULL,
-               [Tooly] [real] NULL,
-               [ToolZ] [real] NULL,
-               [ToolA] [real] NULL,
-               [ToolE] [real] NULL,
-               [ToolR] [real] NULL,
-               [Robotname] [varchar](20) NULL,
-            CONSTRAINT [PK_rt_toollog] PRIMARY KEY CLUSTERED 
-           (
-               [ID] ASC
-           )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-           ) ON [PRIMARY]
-
-           GO
-
-           SET ANSI_PADDING OFF
-           GO
-
-             CREATE UNIQUE NONCLUSTERED INDEX [IndexTableUniqueRows] ON gadata.robotga.rt_toollog
-           (
-                  [tool_timestamp]
-                 ,[tool_id]
-                 ,[Dmeas]
-                 ,[Dsetup]
-                 ,[ToolX]
-                 ,[Tooly]
-                 ,[ToolZ]
-                 ,[ToolA]
-                 ,[ToolE]
-                 ,[ToolR]
-                 ,[controller_id]
-             ASC
-
-           )WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = ON, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
- 
-             */
-
-        }
-        private static DataTable MakePosBufferTable()
-        {
-            DataTable Buffer = new DataTable("Buffer");
-
-            DataColumn ID = new DataColumn();
-            ID.DataType = System.Type.GetType("System.Int32");
-            ID.ColumnName = "ID";
-            ID.AutoIncrement = true;
-            Buffer.Columns.Add(ID);
-
-            DataColumn _timestamp = new DataColumn();
-            _timestamp.DataType = System.Type.GetType("System.DateTime");
-            _timestamp.ColumnName = "_timestamp";
-            Buffer.Columns.Add(_timestamp);
-
-            DataColumn file_timestamp = new DataColumn();
-            file_timestamp.DataType = System.Type.GetType("System.DateTime");
-            file_timestamp.ColumnName = "file_timestamp";
-            Buffer.Columns.Add(file_timestamp);
-
-            DataColumn controller_id = new DataColumn();
-            controller_id.DataType = System.Type.GetType("System.Int32");
-            controller_id.ColumnName = "controller_id";
-            Buffer.Columns.Add(controller_id);
-
-            DataColumn Owner = new DataColumn();
-            Owner.DataType = System.Type.GetType("System.String");
-            Owner.ColumnName = "Owner";
-            Buffer.Columns.Add(Owner);
-
-            DataColumn Pos = new DataColumn();
-            Pos.DataType = System.Type.GetType("System.String");
-            Pos.ColumnName = "Pos";
-            Buffer.Columns.Add(Pos);
-
-            DataColumn X = new DataColumn();
-            X.DataType = System.Type.GetType("System.Decimal");
-            X.ColumnName = "X";
-            Buffer.Columns.Add(X);
-
-            DataColumn Y = new DataColumn();
-            Y.DataType = System.Type.GetType("System.Decimal");
-            Y.ColumnName = "Y";
-            Buffer.Columns.Add(Y);
-
-            DataColumn Z = new DataColumn();
-            Z.DataType = System.Type.GetType("System.Decimal");
-            Z.ColumnName = "Z";
-            Buffer.Columns.Add(Z);
-
-            DataColumn A = new DataColumn();
-            A.DataType = System.Type.GetType("System.Decimal");
-            A.ColumnName = "A";
-            Buffer.Columns.Add(A);
-
-            DataColumn E = new DataColumn();
-            E.DataType = System.Type.GetType("System.Decimal");
-            E.ColumnName = "E";
-            Buffer.Columns.Add(E);
-
-            DataColumn R = new DataColumn();
-            R.DataType = System.Type.GetType("System.Decimal");
-            R.ColumnName = "R";
-            Buffer.Columns.Add(R);
-
-            DataColumn ax7 = new DataColumn();
-            ax7.DataType = System.Type.GetType("System.Decimal");
-            ax7.ColumnName = "ax7";
-            Buffer.Columns.Add(ax7);
-
-            DataColumn ax8 = new DataColumn();
-            ax8.DataType = System.Type.GetType("System.Decimal");
-            ax8.ColumnName = "ax8";
-            Buffer.Columns.Add(ax8);
-
-            DataColumn Cnfg = new DataColumn();
-            Cnfg.DataType = System.Type.GetType("System.String");
-            Cnfg.ColumnName = "Cnfg";
-            Buffer.Columns.Add(Cnfg);
-
-            DataColumn[] keys = new DataColumn[1];
-            keys[0] = ID;
-            Buffer.PrimaryKey = keys;
-
-            return Buffer;
-
-
-//SQL script to make tabl
-/*
-USE [GADATA]
-GO
-SET ANSI_NULLS ON
-GO
-
-SET QUOTED_IDENTIFIER ON
-GO
-
-SET ANSI_PADDING ON
-GO
-
-CREATE TABLE [RobotGA].[L_robotpositions](
-	[ID] [int] IDENTITY(1,1) NOT NULL,
-	[_timestamp] [datetime] NULL,
-	[file_timestamp] [datetime] NULL,
-	[controller_id] [tinyint] NULL,
-	[Owner] [varchar](50) NULL,
-	[Pos] [varchar](50) NULL,
-	[X] [real] NULL,
-	[Y] [real] NULL,
-	[Z] [real] NULL,
-	[a] [real] NULL,
-	[e] [real] NULL,
-	[r] [real] NULL,
-	[ax7] [real] NULL,
-	[ax8] [real] NULL,
-	[Cnfg] [varchar](20) NULL,
- CONSTRAINT [PK_L_robotpositions] PRIMARY KEY CLUSTERED 
-(
-	[ID] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-) ON [PRIMARY]
-
-GO
-
-SET ANSI_PADDING OFF
-GO
-
-
-
- */
-
-        }
-        private static DataTable MakeVerFileBufferTable()
-        {
-            DataTable Buffer = new DataTable("Verfile");
+            DataTable Buffer = new DataTable("Constant");
 
             DataColumn controller_id = new DataColumn();
             controller_id.DataType = System.Type.GetType("System.String");
             controller_id.ColumnName = "controller_name";
             Buffer.Columns.Add(controller_id);
 
+            DataColumn Tool_file = new DataColumn();
+            Tool_file.DataType = System.Type.GetType("System.String");
+            Tool_file.ColumnName = "Tool_file";
+            Buffer.Columns.Add(Tool_file);
+
             DataColumn Module = new DataColumn();
             Module.DataType = System.Type.GetType("System.String");
-            Module.ColumnName = "Module";
+            Module.ColumnName = "Const";
             Buffer.Columns.Add(Module);
 
             DataColumn Version = new DataColumn();
             Version.DataType = System.Type.GetType("System.String");
-            Version.ColumnName = "Version";
+            Version.ColumnName = "Value";
             Buffer.Columns.Add(Version);
+
+            DataColumn Comment = new DataColumn();
+            Comment.DataType = System.Type.GetType("System.String");
+            Comment.ColumnName = "Comment";
+            Buffer.Columns.Add(Comment);
 
             return Buffer;
 
@@ -1134,146 +342,7 @@ GO
             startInfo.RedirectStandardOutput = true;
             startInfo.Arguments = @"/B " + as_FullFilepath;
             try { using (Process exeProcess = Process.Start(startInfo)){ exeProcess.WaitForExit(); }}
-            catch { Debug.Message("TranslationErr", "robotid: " + GetC3GRobotID(GetRobotName(as_FullFilepath)) + " For: " + GetRobotName(as_FullFilepath)); }
-        }
-        static void TranslateC4G(String as_FullFilepath)
-        {
-            //extract the C4G decomplir from the resource into the executionpath
-            byte[] exeBytes = Properties.Resources.pdl2_v561;
-            string exeToRun = new Uri(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase) + @"\c4gtr.exe").LocalPath;
-            if (!File.Exists(exeToRun)) { using (FileStream exeFile = new FileStream(exeToRun, FileMode.CreateNew)) { exeFile.Write(exeBytes, 0, exeBytes.Length); } }
-            // Use ProcessStartInfo class
-            ProcessStartInfo startInfo = new ProcessStartInfo();
-            startInfo.WorkingDirectory = as_FullFilepath.Replace(Path.GetFileName(as_FullFilepath), "").Trim();
-            startInfo.CreateNoWindow = false;
-            startInfo.UseShellExecute = false;
-            startInfo.FileName = exeToRun; //@"C:\temp\c4gtr.exe"; //
-            startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            startInfo.RedirectStandardOutput = true;
-            startInfo.Arguments = @"/B /V " + Path.GetFileName(as_FullFilepath);
-            try { using (Process exeProcess = Process.Start(startInfo)) { exeProcess.WaitForExit(); } }
-            catch { Debug.Message("TranslationErr", "robotid: " + GetC3GRobotID(GetRobotName(as_FullFilepath)) + " For: " + GetRobotName(as_FullFilepath)); }
-        }
-        //*****************************************************************************************************************************************
-        //SQL
-        //*****************************************************************************************************************************************  
-        //function to check if there is dataloss
-        static DataTable CheckDataConsistensyC3G(DataTable AS_intable)
-        {
-            DataRow[] Result = AS_intable.Select("", "error_timestamp ASC");
-            DataRow firstrow = Result[1];
-            DateTime OldestError = Convert.ToDateTime(firstrow[2]);
-            // sql if ts is in db it will return the ts you send.. if not it wil return the last error ts    
-            string connectionString = "user id=GADATA; password=GADATA987; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=5";
-            DateTime ResultTs;
-            using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    SqlCommand commandGetTS = new SqlCommand(
-             "select TOP 1 ISNULL(error_timestamp," +
-             "(select TOP 1 error_timestamp from GADATA.RobotGA.rt_alarm WHERE (controller_id LIKE @robotID) AND (error_timestamp < getdate()) ORDER BY error_timestamp DESC))" +
-             "from GADATA.RobotGA.rt_alarm WHERE (controller_id LIKE @robotID)  AND  (error_timestamp <= @LasterrTS) ORDER BY error_timestamp DESC", connection);
-                    commandGetTS.Parameters.Add(new SqlParameter("robotID", firstrow[1]));
-                    commandGetTS.Parameters.Add(new SqlParameter("LasterrTS", OldestError));
-                    ResultTs = System.Convert.ToDateTime(commandGetTS.ExecuteScalar());
-                    connection.Close();
-                    connection.Dispose();
-                }
-            TimeSpan duration = OldestError - ResultTs;
-            // OK => no gap
-            if (OldestError == ResultTs) { }//Console.WriteLine("NO Datagap"); }
-            //NOK  => get last error in db with ts < one in db
-            else
-            {  //=> make entry in datatable with latest error ts in db and this date
-                Console.WriteLine("!!!!!!!!!!!!************************************!!!!!!!!!!!!");
-                Console.WriteLine("Datagap Detected WorstCaseLoss: {0}", duration);
-                Console.WriteLine("!!!!!!!!!!!!************************************!!!!!!!!!!!!");
-                DataRow row = AS_intable.NewRow();
-                AS_intable.AcceptChanges();
-                row = AS_intable.NewRow();
-                row["controller_id"] = firstrow[1];
-                row["error_timestamp"] = OldestError;
-                row["error_number"] = 99001;
-                row["error_severity"] = 4;
-                row["error_text"] = "Datagap detected WorstCaseDataLoss: " + duration;
-                AS_intable.Rows.Add(row);  
-            }
-            return AS_intable;
-        }
-        //function that gets the robot id from sql
-        static Int32 GetC3GRobotID(String As_inString)
-        {
-            string connectionString = "user id=GADATA; password=GADATA987; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=5";
-            using (SqlConnection connection =
-                       new SqlConnection(connectionString))
-            {
-                connection.Open();
-                // Perform an initial count on the destination table.
-                SqlCommand commandGetId = new SqlCommand("SELECT top  1 id from GADATA.RobotGA.Robot where robot.RobotName LIKE '%" + As_inString +" %' AND Robot.type = 1", connection);
-                Int32 Robotid = System.Convert.ToInt16(commandGetId.ExecuteScalar());
-                connection.Close();
-              //  Console.WriteLine("Got id {0} for robot {1} from sql", Robotid, As_inString);
-              //  Console.ReadLine();
-                connection.Dispose();
-                return Robotid;
-            }  
-            
-        }
-        static Int32 GetC4GRobotID(String As_inString)
-        {
-            string connectionString = "user id=GADATA; password=GADATA987; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=5";
-            using (SqlConnection connection =
-                       new SqlConnection(connectionString))
-            {
-                connection.Open();
-                // Perform an initial count on the destination table.
-                SqlCommand commandGetId = new SqlCommand("select top 1 c_controller.id from GADATA.dbo.c_controller where c_controller.controller_name LIKE '%" + As_inString + "%'", connection);
-                Int32 Robotid = System.Convert.ToInt16(commandGetId.ExecuteScalar());
-                connection.Close();
-                //  Console.WriteLine("Got id {0} for robot {1} from sql", Robotid, As_inString);
-                //  Console.ReadLine();
-                connection.Dispose();
-                return Robotid;
-            }
-
-        }
-        //Bulk Copy to Gadata
-        static void BulkCopyToGadata (DataTable adt_table, string as_destination)
-        {
-            {
-                string connectionString = "user id=GADATA; password=GADATA987; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=30";
-                using (SqlConnection connection =
-                           new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    // Perform an initial count on the destination table.
-                    SqlCommand commandRowCount = new SqlCommand("SELECT COUNT(*) FROM [RobotGA].[" + as_destination + "];", connection);
-                    long countStart = System.Convert.ToInt32(commandRowCount.ExecuteScalar());
-                    // Note that the column positions in the source DataTable  
-                    // match the column positions in the destination table so  
-                    // there is no need to map columns.  
-                    using (SqlBulkCopy bulkCopy = new SqlBulkCopy(connection))
-                    {
-                        bulkCopy.DestinationTableName = "[RobotGA].[" + as_destination + "]";
-                        try
-                        {
-                            // Write from the source to the destination.
-                            bulkCopy.WriteToServer(adt_table);
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.Message("Bukcopy", ex.Message);
-                            Console.WriteLine(ex.HelpLink);
-                        }
-                    }
-                    //see how many rows were added. 
-                    long countEnd = System.Convert.ToInt32(
-                    commandRowCount.ExecuteScalar());
-                    connection.Close();
-                    connection.Dispose();
-                    //Console.WriteLine("Detected: {0} rows {1} new rows were added to Gadata.",adt_table.Rows.Count ,(countEnd - countStart));
-                }
-            }
+            catch { Debug.Message("TranslationErr", " For: " + GetRobotName(as_FullFilepath)); }
         }
         //*****************************************************************************************************************************************
         //FILE HANDELING
