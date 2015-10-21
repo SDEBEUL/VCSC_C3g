@@ -1084,15 +1084,15 @@ GO
             {
                 connection.Open();
                 // Perform an initial count on the destination table.
-                SqlCommand commandGetId = new SqlCommand("select top 1 c_controller.id from GADATA.c3g.c_controller where c_controller.controller_name LIKE '%" + As_inString + "%'", connection);
+                SqlCommand commandGetId = new SqlCommand("SELECT top  1 id from GADATA.RobotGA.Robot where robot.RobotName LIKE '%" + As_inString + " %' AND Robot.type = 1", connection);
                 Int32 Robotid = System.Convert.ToInt16(commandGetId.ExecuteScalar());
                 connection.Close();
-              //  Console.WriteLine("Got id {0} for robot {1} from sql", Robotid, As_inString);
-              //  Console.ReadLine();
+                //  Console.WriteLine("Got id {0} for robot {1} from sql", Robotid, As_inString);
+                //  Console.ReadLine();
                 connection.Dispose();
                 return Robotid;
-            }  
-            
+            }
+
         }
         static Int32 GetC4GRobotID(String As_inString)
         {
