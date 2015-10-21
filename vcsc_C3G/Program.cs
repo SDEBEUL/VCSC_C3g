@@ -15,7 +15,6 @@ using System.Resources;
 using Excel = Microsoft.Office.Interop.Excel;
 
 
- // test 
 namespace vcsc_C3G
 {
 static class Buffer
