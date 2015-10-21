@@ -86,7 +86,7 @@ class Program
          //Main
         static void Main(string[] args)
         {
-            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 15W35D01";
+            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 15W42D03";
             Console.BufferHeight = 100;
             Debug.Init();
             Debug.Message("INFO", "System restarted");
@@ -1084,7 +1084,7 @@ GO
             {
                 connection.Open();
                 // Perform an initial count on the destination table.
-                SqlCommand commandGetId = new SqlCommand("SELECT top  1 id from GADATA.RobotGA.Robot where robot.RobotName LIKE '%" + As_inString +" %' AND Robot.type = 1", connection);
+                SqlCommand commandGetId = new SqlCommand("select top 1 c_controller.id from GADATA.c3g.c_controller where c_controller.controller_name LIKE '%" + As_inString + "%'", connection);
                 Int32 Robotid = System.Convert.ToInt16(commandGetId.ExecuteScalar());
                 connection.Close();
               //  Console.WriteLine("Got id {0} for robot {1} from sql", Robotid, As_inString);
@@ -1102,7 +1102,7 @@ GO
             {
                 connection.Open();
                 // Perform an initial count on the destination table.
-                SqlCommand commandGetId = new SqlCommand("select top 1 c_controller.id from GADATA.dbo.c_controller where c_controller.controller_name LIKE '%" + As_inString + "%'", connection);
+                SqlCommand commandGetId = new SqlCommand("select top 1 c_controller.id from GADATA.c4g.c_controller where c_controller.controller_name LIKE '%" + As_inString + "%'", connection);
                 Int32 Robotid = System.Convert.ToInt16(commandGetId.ExecuteScalar());
                 connection.Close();
                 //  Console.WriteLine("Got id {0} for robot {1} from sql", Robotid, As_inString);
