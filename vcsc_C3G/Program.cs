@@ -86,7 +86,7 @@ class Program
          //Main
         static void Main(string[] args)
         {
-            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 15W15D04";
+            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 15W48D06";
             Console.BufferHeight = 100;
             Debug.Init();
             Debug.Message("INFO", "System restarted");
@@ -628,7 +628,7 @@ class Program
                         String Date = line.Substring((line.IndexOf("Date:")+5),19 ).Trim();
                         //Console.WriteLine("Module: {0} Version:  {1} Size: {2} bytes {3} Date: {4}", Module, Version, Size, Bytes, Date);
                         row = Buffer.NewRow();
-                        row["controller_name"] = GetRobotName(fullFilePath);
+                        row["controller_name"] = GetRobotName(Path.GetFileName(fullFilePath));
                         row["module"] = Module;
                         row["version"] = Version;
                         Buffer.Rows.Add(row);
@@ -642,7 +642,7 @@ class Program
                         String Version = ExtractString(line, "Version:", "v"); //possible that the V char does not live in al differnt appl soft 
                         //Console.WriteLine("Module: {0} Version:  {1} Size: {2} bytes {3} Date: {4}", Module, Version, Size, Bytes, Date);
                         row = Buffer.NewRow();
-                        row["controller_name"] = GetRobotName(fullFilePath);
+                        row["controller_name"] = GetRobotName(Path.GetFileName(fullFilePath));
                         row["module"] = Module;
                         row["version"] = Version;
                         Buffer.Rows.Add(row);
