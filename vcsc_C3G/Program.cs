@@ -91,7 +91,7 @@ class Program
             Debug.Message("INFO", "System restarted");
             //*****************************************************************************************************************************************
             //build file sytem watch 
-            
+            /*
             try { 
             FileSystemWatcher watcher = new FileSystemWatcher();
             watcher.Path = @"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\";
@@ -105,9 +105,9 @@ class Program
             }
             catch (Exception ex) { Debug.Message("Wachter", ex.Message); Debug.Restart(); }
             //*****************************************************************************************************************************************
-            Task.Run(() => VarfileScan());
+            Task.Run(() => VarfileScan());*/
             //*****************************************************************************************************************************************
-          //  Task.Run(() => C3GLogFilescan());
+            Task.Run(() => C3GLogFilescan());
             //*****************************************************************************************************************************************
             Timer TriggerTimer = new System.Timers.Timer(7 * 24 * 60 * 60 * 1000); //run every week 
             TriggerTimer.Start();
