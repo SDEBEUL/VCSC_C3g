@@ -153,6 +153,7 @@ class Program
                             Console.Write("\r System ready | Filebuffer status: {0:D3} | Localbuffer:  {1:D3} ", Buffer.Count(), Cfilecount);
                             spin.Turn();
                             Cfilecount++;
+                            Debug.Message("Reading file: ", file);
                             if (IsFileReady(file) && Buffer.Contains(file)) 
                             { 
                                 if (IsC3GVer(file)) 
@@ -205,7 +206,7 @@ class Program
         //scan for var files
         private static void VErfileScan()
         {
-            List<string> VARSearchpaths = new List<String>() {@"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\",
+            List<string> VARSearchpaths = new List<String>() {@"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\" ,
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\", 
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\",
                 @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
@@ -617,43 +618,61 @@ class Program
                 Buffer.AcceptChanges();
                 foreach (string line in lines)
                 {
-                     // HD modules 
-                    //finds begin of module line And does not contain not present
-                    if (line.Contains("Module:") && !line.Contains("not present "))
+                    try
                     {
-                        String Module = ExtractString(line,"Module:","Version:");
-                        String Version = ExtractString(line, "Version:", "Size:");
-                        String Size = ExtractString(line, "Size:", "bytes");
-                        String Bytes = ExtractString(line, "bytes", "Date:");
-                        String Date = line.Substring((line.IndexOf("Date:")+5),19 ).Trim();
-                        //Console.WriteLine("Module: {0} Version:  {1} Size: {2} bytes {3} Date: {4}", Module, Version, Size, Bytes, Date);
-                        row = Buffer.NewRow();
-                        row["controller_name"] = GetRobotName(Path.GetFileName(fullFilePath));
-                        row["module"] = Module;
-                        row["version"] = Version;
-                        Buffer.Rows.Add(row);
-                    
+                        // HD modules 
+                        //finds begin of module line And does not contain not present
+                        if (line.Contains("Module:") && !line.Contains("not present "))
+                        {
+                            String Module = ExtractString(line, "Module:", "Version:");
+                            String Version = ExtractString(line, "Version:", "Size:");
+                            String Size = ExtractString(line, "Size:", "bytes");
+                            String Bytes = ExtractString(line, "bytes", "Date:");
+                            String Date = line.Substring((line.IndexOf("Date:") + 5), 19).Trim();
+                            //Console.WriteLine("Module: {0} Version:  {1} Size: {2} bytes {3} Date: {4}", Module, Version, Size, Bytes, Date);
+                            row = Buffer.NewRow();
+                            row["file"] = fullFilePath;
+                            row["controller_name"] = GetRobotName(Path.GetFileName(fullFilePath));
+                            row["module"] = Module;
+                            row["version"] = Version;
+                            Buffer.Rows.Add(row);
+
+                        }
+                        // appl soft 
+                        //finds begin of module line And does not contain not present
+                        if (line.Contains("Application:") && !line.Contains("not present "))
+                        {
+                            String Module = ExtractString(line, "Application:", "Version:");
+                            String Ver;
+                            if (line.EndsWith("v"))
+                            {
+                             Ver = ExtractString(line, "Version:", "v"); //possible that the V char does not live in all differnt appl soft 
+                            }
+                            else
+                            {
+                             Ver = line.Substring(line.IndexOf("Version:") + 8);
+                            }
+                            //Console.WriteLine("Module: {0} Version:  {1} Size: {2} bytes {3} Date: {4}", Module, Version, Size, Bytes, Date);
+                            row = Buffer.NewRow();
+                            row["file"] = fullFilePath;
+                            row["controller_name"] = GetRobotName(Path.GetFileName(fullFilePath));
+                            row["module"] = Module;
+                            row["version"] = Ver;
+                            Buffer.Rows.Add(row);
+
+                        }
                     }
-                    // appl soft 
-                    //finds begin of module line And does not contain not present
-                    if (line.Contains("Application:") && !line.Contains("not present "))
+                    catch (Exception e)
                     {
-                        String Module = ExtractString(line, "Application:", "Version:");
-                        String Version = ExtractString(line, "Version:", "v"); //possible that the V char does not live in al differnt appl soft 
-                        //Console.WriteLine("Module: {0} Version:  {1} Size: {2} bytes {3} Date: {4}", Module, Version, Size, Bytes, Date);
-                        row = Buffer.NewRow();
-                        row["controller_name"] = GetRobotName(Path.GetFileName(fullFilePath));
-                        row["module"] = Module;
-                        row["version"] = Version;
-                        Buffer.Rows.Add(row);
-                    
+                       Debug.Message("VerlineReading", line + " Msg: " + e.Message);
+
                     }
                 }
                 return Buffer;
             }
             catch (Exception e)
             {
-                Debug.Message("VerReading", fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)) + " Msg: " + e.Message);
+                Debug.Message("VerfileReading", fullFilePath.Substring(Math.Max(0, fullFilePath.Length - 40)) + " Msg: " + e.Message);
                 DataTable Buffer = MakeErrorlogBufferTable();
                 return Buffer;
             }
@@ -1032,6 +1051,11 @@ GO
         private static DataTable MakeVerFileBufferTable()
         {
             DataTable Buffer = new DataTable("Verfile");
+
+            DataColumn Filename = new DataColumn();
+            Filename.DataType = System.Type.GetType("System.String");
+            Filename.ColumnName = "file";
+            Buffer.Columns.Add(Filename);
 
             DataColumn controller_id = new DataColumn();
             controller_id.DataType = System.Type.GetType("System.String");
