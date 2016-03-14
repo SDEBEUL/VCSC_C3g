@@ -7,6 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "vcsc_C3G", "vcsc_C3G\vcsc_C
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{FB858EAA-8821-4E47-AF82-3140349AC244}"
 	ProjectSection(SolutionItems) = preProject
+		AbbDataReader.cs = AbbDataReader.cs
 		..\..\..\..\..\TEMP\pdl2_v561.exe = ..\..\..\..\..\TEMP\pdl2_v561.exe
 	EndProjectSection
 EndProject

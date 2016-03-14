@@ -85,13 +85,12 @@ class Program
          //Main
         static void Main(string[] args)
         {
-            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 15W42D03";
+            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 16W10D01";
             Console.BufferHeight = 100;
             Debug.Init();
             Debug.Message("INFO", "System restarted");
             //*****************************************************************************************************************************************
-            //build file sytem watch 
-            /*
+            //build file sytem watch  
             try { 
             FileSystemWatcher watcher = new FileSystemWatcher();
             watcher.Path = @"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\";
@@ -105,11 +104,11 @@ class Program
             }
             catch (Exception ex) { Debug.Message("Wachter", ex.Message); Debug.Restart(); }
             //*****************************************************************************************************************************************
-            Task.Run(() => VarfileScan());*/
+            Task.Run(() => VarfileScan());
             //*****************************************************************************************************************************************
             Task.Run(() => C3GLogFilescan());
             //*****************************************************************************************************************************************
-            Timer TriggerTimer = new System.Timers.Timer(7 * 24 * 60 * 60 * 1000); //run every week 
+            Timer TriggerTimer = new System.Timers.Timer(24 * 60 * 60 * 1000); //run every day 
             TriggerTimer.Start();
             TriggerTimer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
             //*****************************************************************************************************************************************
@@ -190,16 +189,18 @@ class Program
                 switch (IsC3GLog(fullFilepath))
                 {
                     case "Errorlog":
+                        /*
                         buffertable = ReadC3GErrlog(fullFilepath);
                         buffertable = CheckDataConsistensyC3G(buffertable);
                         BulkCopyToGadata("ROBOTGA",buffertable, "rt_alarm");
+                        */
                         SafeDelete(fullFilepath);
                         Buffer.Delete(fullFilepath);
                         RemoveEmptyFolders(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
                         break;
                     case "Toollog":
                         buffertable = ReadC3GToollog(fullFilepath);
-                        BulkCopyToGadata("ROBOTGA", buffertable, "rt_toollog");
+                        BulkCopyToGadata("C3G", buffertable, "rt_toollog");
                         SafeDelete(fullFilepath);
                         Buffer.Delete(fullFilepath);
                         RemoveEmptyFolders(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
@@ -247,7 +248,7 @@ class Program
                     if (C3GRobotID != 0) 
                     {
                         buffer = ReadPosVarFile(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase), C3GRobotID);
-                        BulkCopyToGadata("ROBOTGA", buffer, "L_robotpositions"); 
+                        BulkCopyToGadata("C3G", buffer, "L_robotpositions"); 
                     }
                     File.Delete(Regex.Replace(fullFilePath, ".var", ".lsv", RegexOptions.IgnoreCase));
                 }
@@ -1083,10 +1084,10 @@ GO
             {
                 connection.Open();
                 // Perform an initial count on the destination table.
-                SqlCommand commandGetId = new SqlCommand("SELECT top  1 id from GADATA.RobotGA.Robot where robot.RobotName LIKE '%" + As_inString + " %' AND Robot.type = 1", connection);
+                SqlCommand commandGetId = new SqlCommand("select top 1 c_controller.id from GADATA.c3g.c_controller where c_controller.controller_name LIKE '%" + As_inString + "%'", connection);
                 Int32 Robotid = System.Convert.ToInt16(commandGetId.ExecuteScalar());
                 connection.Close();
-                //  Console.WriteLine("Got id {0} for robot {1} from sql", Robotid, As_inString);
+                //  Console.WriteLine("c3g Got id {0} for robot {1} from sql", Robotid, As_inString);
                 //  Console.ReadLine();
                 connection.Dispose();
                 return Robotid;
@@ -1104,7 +1105,7 @@ GO
                 SqlCommand commandGetId = new SqlCommand("select top 1 c_controller.id from GADATA.c4g.c_controller where c_controller.controller_name LIKE '%" + As_inString + "%'", connection);
                 Int32 Robotid = System.Convert.ToInt16(commandGetId.ExecuteScalar());
                 connection.Close();
-                //  Console.WriteLine("Got id {0} for robot {1} from sql", Robotid, As_inString);
+                //  Console.WriteLine("c4g Got id {0} for robot {1} from sql", Robotid, As_inString);
                 //  Console.ReadLine();
                 connection.Dispose();
                 return Robotid;
