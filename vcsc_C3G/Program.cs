@@ -85,7 +85,7 @@ class Program
          //Main
         static void Main(string[] args)
         {
-            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 16W10D01";
+            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 16W34D02";
             Console.BufferHeight = 100;
             Debug.Init();
             Debug.Message("INFO", "System restarted");
@@ -93,7 +93,7 @@ class Program
             //build file sytem watch  
             try { 
             FileSystemWatcher watcher = new FileSystemWatcher();
-            watcher.Path = @"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\";
+            watcher.Path = @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\logs\Comau\3\";
             watcher.InternalBufferSize = (watcher.InternalBufferSize * 2); //2 times default buffer size 
             watcher.Error += new ErrorEventHandler(OnError);
             watcher.Filter = "*.LOG";
@@ -146,7 +146,7 @@ class Program
         private static void C3GLogFilescan()
         {
             Debug.Message("INFO", "Logfilescan"); 
-            List<string> LOGSearchpaths = new List<String>() { @"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" };
+            List<string> LOGSearchpaths = new List<String>() { @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\logs\Comau\3\" };
             List<string> LOGExeptedfiles = new List<string>() { "TOOL_01.LOG", "TOOL_02.LOG", "TOOL_03.LOG", "TOOL_04.LOG", "ERROR.LOG" };
             List<string> LOGExeptedFolders = new List<string>() { @"\Comau\3\" };
             List<string> LOGResultList = ReqSearchDir(LOGSearchpaths, "*.LOG", LOGExeptedfiles, LOGExeptedFolders);
@@ -158,11 +158,11 @@ class Program
         {
             Debug.Message("INFO", "Varfilescan"); 
             List<string> VARSearchpaths = new List<String>() {
-                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\",
-                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\", 
-                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\",
-                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
-                @"\\gnl9011101\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};
+                @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\",
+                @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\", 
+                @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\",
+                @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
+                @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};
             List<string> VARExeptedfiles = new List<string>() { "LY413", "LY283", "LY55X", "LTOOL_", "TT_TOOL1.VAR", "TUVFRAME.VAR", "LArc", "LGripp", "LStatGun", "LGun", "Lstud" };
             List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
             List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VAR", VARExeptedfiles, VARExeptedFolders);
@@ -196,14 +196,14 @@ class Program
                         */
                         SafeDelete(fullFilepath);
                         Buffer.Delete(fullFilepath);
-                        RemoveEmptyFolders(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
+                        RemoveEmptyFolders(@"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
                         break;
                     case "Toollog":
                         buffertable = ReadC3GToollog(fullFilepath);
                         BulkCopyToGadata("C3G", buffertable, "rt_toollog");
                         SafeDelete(fullFilepath);
                         Buffer.Delete(fullFilepath);
-                        RemoveEmptyFolders(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
+                        RemoveEmptyFolders(@"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\logs\Comau\3\" + GetRobotName(fullFilepath));
                         break;
                     default:
                         Debug.Message("Unknow filetype", fullFilepath.Substring(Math.Max(0, fullFilepath.Length - 40)));
@@ -1227,7 +1227,7 @@ GO
         //Deletes the file. (with savegard to only delete files in log location
         public static void SafeDelete(String fullPath)
         {
-            if (fullPath.IndexOf(@"\\gnl9011101\6308-APP-NASROBOTBCK0001\logs\Comau\3\", 0, StringComparison.CurrentCultureIgnoreCase) != -1) 
+            if (fullPath.IndexOf(@"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\logs\Comau\3\", 0, StringComparison.CurrentCultureIgnoreCase) != -1) 
             { File.Delete(fullPath); }
             else { Debug.Message("IllegalFiledelete", fullPath.Substring(Math.Max(0, fullPath.Length - 40))); }
         }
