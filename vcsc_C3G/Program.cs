@@ -85,7 +85,7 @@ class Program
          //Main
         static void Main(string[] args)
         {
-            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 16W34D02";
+            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 17W3D02";
             Console.BufferHeight = 100;
             Debug.Init();
             Debug.Message("INFO", "System restarted");
@@ -163,7 +163,7 @@ class Program
                 @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\",
                 @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
                 @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};
-            List<string> VARExeptedfiles = new List<string>() { "LY413", "LY283", "LY55X", "LTOOL_", "TT_TOOL1.VAR", "TUVFRAME.VAR", "LArc", "LGripp", "LStatGun", "LGun", "Lstud" };
+            List<string> VARExeptedfiles = new List<string>() { "LY413", "LY283", "LY55X", "LA440","LA441","LA442", "LTOOL_", "TT_TOOL1.VAR", "TUVFRAME.VAR", "LArc", "LGripp", "LStatGun", "LGun", "Lstud" };
             List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
             List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VAR", VARExeptedfiles, VARExeptedFolders);
             foreach (string file in VARResultList) { Buffer.Record(file); }
@@ -367,6 +367,18 @@ class Program
 
             foreach (string line in lines)
             {
+                //check if the SBCU is in simulation mode 
+                if (line.Contains("MinUpdate:"))
+                {
+                    //MinUpdate:  1.000, MaxUpdate:  10.000, MinWearing:  0.000
+                    float iMinUpdate = float.Parse(line.Split(':')[1].Split(',')[0].Trim(), CultureInfo.InvariantCulture);
+                    float iMaxUpdate = float.Parse(line.Split(':')[2].Split(',')[0].Trim(), CultureInfo.InvariantCulture);
+                    if (iMaxUpdate > 10 || iMinUpdate > 1)
+                    {
+                        SendrErrorC3G(RobotId, 99907, 2, string.Format("SBCU warning: {0}",line));
+                    }
+                }
+
                 //finds begin of datetime line and next line has tcp
                 if (System.Text.RegularExpressions.Regex.IsMatch(line, sPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase) && lines[index + 1].Contains("T <"))
                 {
@@ -1032,6 +1044,31 @@ GO
         //*****************************************************************************************************************************************
         //SQL
         //*****************************************************************************************************************************************  
+        //Send Error to database. (c3g)
+        static void SendrErrorC3G(int iRobotId, int iErrorNum, int iErrorSevr, string sErrorText)
+        {
+            // sql if ts is in db it will return the ts you send.. if not it wil return the last error ts    
+            string connectionString = "user id=GADATA; password=GADATA987; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=5";
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                SqlCommand commandInsertError = new SqlCommand(@"
+                            INSERT INTO GADATA.C3G.rt_ALARM 
+                            (controller_id,_timestamp,error_number,error_severity,error_text)
+                            VALUES(@robotid,getdate(),@ErrorNum,@ErrorSevr,@ErrorText)
+                            ", connection);
+                commandInsertError.Parameters.Add(new SqlParameter("@robotid", iRobotId));
+                commandInsertError.Parameters.Add(new SqlParameter("@ErrorNum", iErrorNum));
+                commandInsertError.Parameters.Add(new SqlParameter("@ErrorSevr", iErrorSevr));
+                commandInsertError.Parameters.Add(new SqlParameter("@ErrorText", sErrorText));
+                Debug.Message("INFO",string.Format("c3gEERORSEND Robotid:{0} Error:{1}-{2} {3} ",iRobotId,iErrorNum,iErrorSevr,sErrorText));
+                var result = commandInsertError.ExecuteScalar();
+                connection.Close();
+                connection.Dispose();
+            }
+        }
+    
+    
         //function to check if there is dataloss
         static DataTable CheckDataConsistensyC3G(DataTable AS_intable)
         {
