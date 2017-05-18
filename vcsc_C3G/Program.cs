@@ -85,7 +85,7 @@ class Program
          //Main
         static void Main(string[] args)
         {
-            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 17W3D02";
+            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 17W20D04";
             Console.BufferHeight = 100;
             Debug.Init();
             Debug.Message("INFO", "System restarted");
@@ -158,11 +158,11 @@ class Program
         {
             Debug.Message("INFO", "Varfilescan"); 
             List<string> VARSearchpaths = new List<String>() {
-                @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\",
+                @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\"};/*,
                 @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\", 
                 @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\",
                 @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
-                @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};
+                @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};*/
             List<string> VARExeptedfiles = new List<string>() { "LY413", "LY283", "LY55X", "LA440","LA441","LA442", "LTOOL_", "TT_TOOL1.VAR", "TUVFRAME.VAR", "LArc", "LGripp", "LStatGun", "LGun", "Lstud" };
             List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
             List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VAR", VARExeptedfiles, VARExeptedFolders);
@@ -364,7 +364,7 @@ class Program
             DataTable Buffer = MakeToollogBufferTable();
             DataRow row = Buffer.NewRow();
             Buffer.AcceptChanges();
-
+            //
             foreach (string line in lines)
             {
                 //check if the SBCU is in simulation mode 
@@ -1024,7 +1024,7 @@ GO
         {
          try {
             //extract the C4G decomplir from the resource into the executionpath
-            byte[] exeBytes = Properties.Resources.pdl2_v561;
+            byte[] exeBytes = Properties.Resources.c4gtr;
             string exeToRun = new Uri(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase) + @"\c4gtr.exe").LocalPath;
             if (!File.Exists(exeToRun)) { using (FileStream exeFile = new FileStream(exeToRun, FileMode.CreateNew)) { exeFile.Write(exeBytes, 0, exeBytes.Length); } }
             // Use ProcessStartInfo class
@@ -1034,7 +1034,7 @@ GO
             startInfo.UseShellExecute = false;
             startInfo.FileName = exeToRun;
             startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            startInfo.RedirectStandardOutput = true;
+            startInfo.RedirectStandardOutput = false;
             startInfo.Arguments = @"/B /V " + Path.GetFileName(as_FullFilepath);
             using (Process exeProcess = Process.Start(startInfo)) {exeProcess.WaitForExit(); }
             }
@@ -1048,13 +1048,13 @@ GO
         static void SendrErrorC3G(int iRobotId, int iErrorNum, int iErrorSevr, string sErrorText)
         {
             // sql if ts is in db it will return the ts you send.. if not it wil return the last error ts    
-            string connectionString = "user id=GADATA; password=GADATA987; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=5";
+            string connectionString = "user id=VCSCHelper; password=VCSCHelper; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=5";
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
                 SqlCommand commandInsertError = new SqlCommand(@"
                             INSERT INTO GADATA.C3G.rt_ALARM 
-                            (controller_id,_timestamp,error_number,error_severity,error_text)
+                            (controller_id,error_timestamp,error_number,error_severity,error_text)
                             VALUES(@robotid,getdate(),@ErrorNum,@ErrorSevr,@ErrorText)
                             ", connection);
                 commandInsertError.Parameters.Add(new SqlParameter("@robotid", iRobotId));
@@ -1076,7 +1076,7 @@ GO
             DataRow firstrow = Result[1];
             DateTime OldestError = Convert.ToDateTime(firstrow[2]);
             // sql if ts is in db it will return the ts you send.. if not it wil return the last error ts    
-            string connectionString = "user id=GADATA; password=GADATA987; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=5";
+            string connectionString = "user id=VCSCHelper; password=VCSCHelper; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=5";
             DateTime ResultTs;
             using (SqlConnection connection = new SqlConnection(connectionString))
                 {
@@ -1115,7 +1115,7 @@ GO
         //function that gets the robot id from sql
         static Int32 GetC3GRobotID(String As_inString)
         {
-            string connectionString = "user id=GADATA; password=GADATA987; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=5";
+            string connectionString = "user id=VCSCHelper; password=VCSCHelper; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=5";
             using (SqlConnection connection =
                        new SqlConnection(connectionString))
             {
@@ -1133,7 +1133,7 @@ GO
         }
         static Int32 GetC4GRobotID(String As_inString)
         {
-            string connectionString = "user id=GADATA; password=GADATA987; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=5";
+            string connectionString = "user id=VCSCHelper; password=VCSCHelper; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=5";
             using (SqlConnection connection =
                        new SqlConnection(connectionString))
             {
@@ -1153,7 +1153,7 @@ GO
         static void BulkCopyToGadata (string as_schema, DataTable adt_table, string as_destination)
         {
             {
-                string connectionString = "user id=GADATA; password=GADATA987; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=30";
+                string connectionString = "user id=VCSCHelper; password=VCSCHelper; server=SQLA001.gen.volvocars.net; Trusted_Connection=no; database=gadata; connection timeout=30";
                 using (SqlConnection connection =
                            new SqlConnection(connectionString))
                 {
