@@ -85,11 +85,17 @@ class Program
          //Main
         static void Main(string[] args)
         {
-            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 17W20D04";
+            Assembly _assembly = Assembly.GetExecutingAssembly();
+            FileVersionInfo fvi = FileVersionInfo.GetVersionInfo(_assembly.Location);
+
+
+            Console.Title = "VOLVO Comau C3G vcsc Build by SDEBEUL version: 17W20D04 v:"+fvi.ProductVersion;
             Console.BufferHeight = 100;
             Debug.Init();
             Debug.Message("INFO", "System restarted");
             //*****************************************************************************************************************************************
+
+
             //build file sytem watch  
             try { 
             FileSystemWatcher watcher = new FileSystemWatcher();
@@ -158,11 +164,11 @@ class Program
         {
             Debug.Message("INFO", "Varfilescan"); 
             List<string> VARSearchpaths = new List<String>() {
-                @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB\"};/*,
+                @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\ROBLAB",
                 @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\SIBO\", 
                 @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\FLOOR\",
                 @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_SIBO\",
-                @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};*/
+                @"\\gnlsnm0101.gen.volvocars.net\6308-APP-NASROBOTBCK0001\Robot_ga\P1X_FLOOR\"};
             List<string> VARExeptedfiles = new List<string>() { "LY413", "LY283", "LY55X", "LA440","LA441","LA442", "LTOOL_", "TT_TOOL1.VAR", "TUVFRAME.VAR", "LArc", "LGripp", "LStatGun", "LGun", "Lstud" };
             List<string> VARExeptedFolders = new List<string>() { @"\transfert\" };
             List<string> VARResultList = ReqSearchDir(VARSearchpaths, "*.VAR", VARExeptedfiles, VARExeptedFolders);
@@ -1020,27 +1026,32 @@ GO
             try { using (Process exeProcess = Process.Start(startInfo)){ exeProcess.WaitForExit(); }}
             catch { Debug.Message("c3gTranslationErr", "robotid: " + GetC3GRobotID(GetRobotName(as_FullFilepath)) + " For: " + GetRobotName(as_FullFilepath)); }
         }
+
         static void TranslateC4G(String as_FullFilepath)
         {
-         try {
-            //extract the C4G decomplir from the resource into the executionpath
-            byte[] exeBytes = Properties.Resources.c4gtr;
-            string exeToRun = new Uri(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase) + @"\c4gtr.exe").LocalPath;
-            if (!File.Exists(exeToRun)) { using (FileStream exeFile = new FileStream(exeToRun, FileMode.CreateNew)) { exeFile.Write(exeBytes, 0, exeBytes.Length); } }
-            // Use ProcessStartInfo class
-            ProcessStartInfo startInfo = new ProcessStartInfo();
-            startInfo.WorkingDirectory = as_FullFilepath.Replace(Path.GetFileName(as_FullFilepath), "").Trim();
-            startInfo.CreateNoWindow = false;
-            startInfo.UseShellExecute = false;
-            startInfo.FileName = exeToRun;
-            startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            startInfo.RedirectStandardOutput = false;
-            startInfo.Arguments = @"/B /V " + Path.GetFileName(as_FullFilepath);
-            using (Process exeProcess = Process.Start(startInfo)) {exeProcess.WaitForExit(); }
+            try
+            {
+                //extract the C4G decomplir from the resource into the executionpath
+                byte[] exeBytes = Properties.Resources.c4gtr;
+                string exeToRun = new Uri(System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase) + @"\c4gtr.exe").LocalPath;
+                if (!File.Exists(exeToRun)) { using (FileStream exeFile = new FileStream(exeToRun, FileMode.CreateNew)) { exeFile.Write(exeBytes, 0, exeBytes.Length); } }
+                // Use ProcessStartInfo class
+                ProcessStartInfo startInfo = new ProcessStartInfo();
+                startInfo.WorkingDirectory = as_FullFilepath.Replace(Path.GetFileName(as_FullFilepath), "").Trim();
+                startInfo.CreateNoWindow = false;
+                startInfo.UseShellExecute = false;
+                startInfo.FileName = exeToRun;
+                startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                startInfo.RedirectStandardOutput = false;
+                startInfo.Arguments =  Path.GetFileName(as_FullFilepath);
+                using (Process exeProcess = Process.Start(startInfo)) { exeProcess.WaitForExit(); }
             }
-            catch (Exception ex) { Debug.Message("c4gTranslationErr", "For: "  + GetRobotName(as_FullFilepath) +"  M: " + ex.Message);
+            catch (Exception ex)
+            {
+                Debug.Message("c4gTranslationErr", "For: " + GetRobotName(as_FullFilepath) + "  M: " + ex.Message);
             }
         }
+
         //*****************************************************************************************************************************************
         //SQL
         //*****************************************************************************************************************************************  
